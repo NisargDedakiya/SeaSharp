@@ -16,9 +16,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "TradeNova — The Trade Operating System",
+  title: "SeaSharp — The Global Trade Infrastructure Platform",
   description:
-    "RFQ marketplace, compliance intelligence, logistics, and PO-backed trade finance in one closed-loop platform.",
+    "One platform. Every trade. Anywhere in the world. Trade intelligence, documentation, RFQ marketplace, logistics, and trade finance in one connected ecosystem.",
 };
 
 export default function RootLayout({

@@ -11,9 +11,9 @@ export function Navbar() {
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2">
           <span className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500 text-sm font-bold text-slate-950">
-            T
+            S
           </span>
-          <span className="text-lg font-semibold tracking-tight text-slate-50">TradeNova</span>
+          <span className="text-lg font-semibold tracking-tight text-slate-50">SeaSharp</span>
         </Link>
 
         <div className="hidden items-center gap-6 text-sm text-slate-300 md:flex">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { recalculateAndSaveTns } from "@/lib/tns";
+import { recalculateAndSaveSts } from "@/lib/sts";
 
 // Advances escrow to the next pending milestone. Funds only move at
 // verified logistics milestones (spec section 05, Pillar B) — this endpoint
@@ -76,7 +76,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
   });
 
   if (isFinalMilestone && escrow.rfq.shipment) {
-    await recalculateAndSaveTns(escrow.rfq.shipment.exporterId);
+    await recalculateAndSaveSts(escrow.rfq.shipment.exporterId);
   }
 
   const updated = await prisma.escrow.findUnique({

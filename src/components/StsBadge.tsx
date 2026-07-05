@@ -1,4 +1,4 @@
-import { tierForScore, TNS_TIER_LABELS } from "@/lib/tns";
+import { tierForScore, STS_TIER_LABELS } from "@/lib/sts";
 
 const TIER_COLORS: Record<string, string> = {
   NEW: "bg-slate-700 text-slate-200",
@@ -7,11 +7,11 @@ const TIER_COLORS: Record<string, string> = {
   TRUSTED_PARTNER: "bg-emerald-500/15 text-emerald-400",
 };
 
-export function TnsBadge({ score }: { score: number }) {
+export function StsBadge({ score }: { score: number }) {
   const tier = tierForScore(score);
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${TIER_COLORS[tier]}`}>
-      TNS {score} · {TNS_TIER_LABELS[tier]}
+      STS {score} · {STS_TIER_LABELS[tier]}
     </span>
   );
 }

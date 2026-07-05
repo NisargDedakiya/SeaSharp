@@ -2,10 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-import { recalculateAndSaveTns, TNS_TIER_LABELS } from "@/lib/tns";
+import { recalculateAndSaveSts, STS_TIER_LABELS } from "@/lib/sts";
 import { KycPanel } from "@/components/dashboard/KycPanel";
 import { LoanPanel } from "@/components/dashboard/LoanPanel";
-import { TnsBadge } from "@/components/TnsBadge";
+import { StsBadge } from "@/components/StsBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function DashboardPage() {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
 
   if (user.role === "EXPORTER") {
-    const breakdown = await recalculateAndSaveTns(user.id);
+    const breakdown = await recalculateAndSaveSts(user.id);
 
     const bids = await prisma.bid.findMany({
       where: { exporterId: user.id },
@@ -46,8 +46,8 @@ export default async function DashboardPage() {
 
         <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-100">TradeNova Score</h2>
-            <TnsBadge score={breakdown.totalScore} />
+            <h2 className="font-semibold text-slate-100">SeaSharp Trust Score</h2>
+            <StsBadge score={breakdown.totalScore} />
           </div>
           <dl className="mt-4 grid grid-cols-2 gap-y-1 text-sm text-slate-400 sm:grid-cols-3">
             <dt>KYC/KYB</dt>
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
             <dd className="text-slate-200">{breakdown.loanRepaymentPoints}/160</dd>
           </dl>
           <p className="mt-3 text-xs text-slate-500">
-            Tier: {TNS_TIER_LABELS[breakdown.tier]}
+            Tier: {STS_TIER_LABELS[breakdown.tier]}
           </p>
         </div>
 

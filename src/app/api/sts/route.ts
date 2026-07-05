@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { recalculateAndSaveTns, tierForScore } from "@/lib/tns";
+import { recalculateAndSaveSts, tierForScore } from "@/lib/sts";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -9,6 +9,6 @@ export async function GET() {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
-  const breakdown = await recalculateAndSaveTns(session.user.id);
+  const breakdown = await recalculateAndSaveSts(session.user.id);
   return NextResponse.json({ ...breakdown, tier: tierForScore(breakdown.totalScore) });
 }

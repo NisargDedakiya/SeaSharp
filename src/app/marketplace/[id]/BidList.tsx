@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { TnsBadge } from "@/components/TnsBadge";
+import { StsBadge } from "@/components/StsBadge";
 
 type Bid = {
   id: string;
   pricePerUnit: number;
   message: string | null;
   status: string;
-  exporter: { id: string; name: string; companyName: string | null; tnsScore: number };
+  exporter: { id: string; name: string; companyName: string | null; stsScore: number };
 };
 
 export function BidList({
@@ -70,7 +70,7 @@ export function BidList({
                   <span className="font-medium text-slate-100">
                     {bid.exporter.companyName ?? bid.exporter.name}
                   </span>
-                  <TnsBadge score={bid.exporter.tnsScore} />
+                  <StsBadge score={bid.exporter.stsScore} />
                 </div>
                 <p className="text-sm text-slate-400">
                   ${bid.pricePerUnit}/unit

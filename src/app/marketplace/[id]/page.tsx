@@ -16,7 +16,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
     include: {
       importer: { select: { id: true, name: true, companyName: true } },
       bids: {
-        include: { exporter: { select: { id: true, name: true, companyName: true, tnsScore: true } } },
+        include: { exporter: { select: { id: true, name: true, companyName: true, stsScore: true } } },
         orderBy: { createdAt: "asc" },
       },
       escrow: { include: { milestones: { orderBy: { sequence: "asc" } } } },

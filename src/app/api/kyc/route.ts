@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { runSupplierCheck } from "@/lib/supplierradar";
-import { recalculateAndSaveTns } from "@/lib/tns";
+import { recalculateAndSaveSts } from "@/lib/sts";
 
 export async function POST() {
   const session = await getServerSession(authOptions);
@@ -28,7 +28,7 @@ export async function POST() {
   });
 
   if (updated.role === "EXPORTER") {
-    await recalculateAndSaveTns(updated.id);
+    await recalculateAndSaveSts(updated.id);
   }
 
   return NextResponse.json({ kycStatus: updated.kycStatus, flags: check.flags });

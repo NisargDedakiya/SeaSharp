@@ -24,7 +24,7 @@ export async function GET() {
 
 // PO-backed trade finance request (spec Pillar D). Only an exporter holding
 // an awarded, escrow-funded RFQ (a "platform-verified purchase order") can
-// request an advance against it, scored by CreditLayer off their TNS.
+// request an advance against it, scored by CreditLayer off their STS.
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "EXPORTER") {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const exporter = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
   const decision = scoreLoanRequest({
-    tnsScore: exporter.tnsScore,
+    stsScore: exporter.stsScore,
     requestedAmount: parsed.data.requestedAmount,
     poValue: rfq.escrow.amount,
   });

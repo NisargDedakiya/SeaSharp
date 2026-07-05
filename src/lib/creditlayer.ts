@@ -1,4 +1,4 @@
-import { tierForScore, type TnsTier } from "@/lib/tns";
+import { tierForScore, type StsTier } from "@/lib/sts";
 
 export type LoanDecision = {
   approved: boolean;
@@ -8,29 +8,29 @@ export type LoanDecision = {
   reason: string;
 };
 
-const RATE_BY_TIER: Record<TnsTier, number | null> = {
+const RATE_BY_TIER: Record<StsTier, number | null> = {
   TRUSTED_PARTNER: 8,
   RELIABLE: 11,
   VERIFIED: 15,
   NEW: null, // not enough history to price risk yet
 };
 
-const ADVANCE_RATE_BY_TIER: Record<TnsTier, number> = {
+const ADVANCE_RATE_BY_TIER: Record<StsTier, number> = {
   TRUSTED_PARTNER: 0.9,
   RELIABLE: 0.75,
   VERIFIED: 0.6,
   NEW: 0,
 };
 
-// CreditLayer stub: scores a PO-financing request off the exporter's TNS
-// (spec section 06 / 14). TNS-gated rates create the virtuous cycle
+// CreditLayer stub: scores a PO-financing request off the exporter's STS
+// (spec section 06 / 14). STS-gated rates create the virtuous cycle
 // described in section 07 — better behavior unlocks cheaper capital.
 export function scoreLoanRequest(params: {
-  tnsScore: number;
+  stsScore: number;
   requestedAmount: number;
   poValue: number;
 }): LoanDecision {
-  const tier = tierForScore(params.tnsScore);
+  const tier = tierForScore(params.stsScore);
   const rate = RATE_BY_TIER[tier];
   const advanceRate = ADVANCE_RATE_BY_TIER[tier];
 
@@ -40,7 +40,7 @@ export function scoreLoanRequest(params: {
       approvedAmount: null,
       interestRatePercent: null,
       riskBand: tier,
-      reason: "TNS score too new to price PO-backed credit risk. Build shipment history to unlock financing.",
+      reason: "STS score too new to price PO-backed credit risk. Build shipment history to unlock financing.",
     };
   }
 

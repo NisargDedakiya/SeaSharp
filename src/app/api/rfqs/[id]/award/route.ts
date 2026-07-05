@@ -87,7 +87,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         originLocation: rfq.originCountry,
         destinationLocation: rfq.destinationCountry,
         estimatedCost: route.estimatedCost,
-        tnsScoreAtTimeOfDeal: exporter.tnsScore,
+        stsScoreAtTimeOfDeal: exporter.stsScore,
         aiRouteRecommendation: route.recommendation,
       },
     });

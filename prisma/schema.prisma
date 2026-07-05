@@ -1,6 +1,6 @@
-// TradeNova — Phase 1 MVP data model
+// SeaSharp — Phase 1 MVP data model
 // Trade Route Engine, RFQ Marketplace (blind bidding + escrow), Logistics estimation,
-// PO-backed Trade Finance, and TradeNova Score (TNS).
+// PO-backed Trade Finance, and SeaSharp Trust Score (STS).
 
 generator client {
   provider = "prisma-client-js"
@@ -54,6 +54,12 @@ enum Role {
   EXPORTER
   IMPORTER
   ADMIN
+  // Ecosystem roles (schema-ready; full workflows land in a later phase).
+  FREIGHT_FORWARDER
+  CUSTOMS_BROKER
+  WAREHOUSE_PROVIDER
+  BANK
+  INSURANCE_COMPANY
 }
 
 enum KycStatus {
@@ -129,6 +135,14 @@ enum DocumentType {
   PACKING_LIST
   CERTIFICATE_OF_ORIGIN
   BILL_OF_LADING
+  AIR_WAYBILL
+  EXPORT_DECLARATION
+  IMPORT_DECLARATION
+  INSURANCE_CERTIFICATE
+  INSPECTION_CERTIFICATE
+  FUMIGATION_CERTIFICATE
+  LETTER_OF_CREDIT
+  PROFORMA_INVOICE
 }
 
 model User {
@@ -147,7 +161,7 @@ model User {
   kycSubmittedAt  DateTime?
   kycVerifiedAt   DateTime?
 
-  tnsScore Int @default(0)
+  stsScore Int @default(0)
 
   accounts Account[]
   sessions Session[]
@@ -155,7 +169,7 @@ model User {
   rfqsPosted     Rfq[]         @relation("ImporterRfqs")
   bids           Bid[]
   documents      Document[]
-  tnsScoreLogs   TnsScoreLog[]
+  stsScoreLogs   StsScoreLog[]
   loans          TradeLoan[]
   exporterShipments Shipment[] @relation("ExporterShipments")
   importerShipments Shipment[] @relation("ImporterShipments")
@@ -287,7 +301,7 @@ model Shipment {
   actualCost             Float?
   customsClearedAt       DateTime?
   deliveredAt            DateTime?
-  tnsScoreAtTimeOfDeal   Int
+  stsScoreAtTimeOfDeal   Int
   aiRouteRecommendation  String?
   createdAt              DateTime       @default(now())
 
@@ -332,9 +346,9 @@ model TradeLoan {
   exporter User @relation(fields: [exporterId], references: [id])
 }
 
-// ---------- TradeNova Score (TNS) ----------
+// ---------- SeaSharp Trust Score (STS) ----------
 
-model TnsScoreLog {
+model StsScoreLog {
   id                     String   @id @default(cuid())
   userId                 String
   totalScore             Int
