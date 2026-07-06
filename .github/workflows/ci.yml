@@ -9,7 +9,6 @@ jobs:
   lint-typecheck-test-build:
     runs-on: ubuntu-latest
     env:
-      MONGODB_URI: mongodb://localhost:27017/seasharp-ci
       NEXTAUTH_SECRET: ci-test-secret-ci-test-secret-1234
       NEXTAUTH_URL: http://localhost:3000
       NODE_ENV: test
@@ -34,10 +33,17 @@ jobs:
         run: npx tsc --noEmit -p tsconfig.vitest.json
 
       - name: Test
-        # mongodb-memory-server downloads a real mongod and runs it as a
-        # single-node replica set, so the transactional integration tests
-        # (RFQ award, escrow release) run for real here.
+        # No MONGODB_URI is set here on purpose: tests/global-setup.ts only
+        # spins up mongodb-memory-server (a real replica set, so the
+        # transactional integration tests run for real) when MONGODB_URI
+        # isn't already present in the environment.
         run: npm test
 
       - name: Build
+        # next build's module graph touches src/lib/env.ts at import time
+        # (see api-handler.ts -> mongoose.ts -> env.ts), so it needs a
+        # syntactically valid MONGODB_URI even though it never connects
+        # during the build itself.
+        env:
+          MONGODB_URI: mongodb://localhost:27017/seasharp-build
         run: npm run build
