@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-typecheck-test-build:
+    runs-on: ubuntu-latest
+    env:
+      MONGODB_URI: mongodb://localhost:27017/seasharp-ci
+      NEXTAUTH_SECRET: ci-test-secret-ci-test-secret-1234
+      NEXTAUTH_URL: http://localhost:3000
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck app
+        run: npx tsc --noEmit
+
+      - name: Typecheck tests
+        run: npx tsc --noEmit -p tsconfig.vitest.json
+
+      - name: Test
+        # mongodb-memory-server downloads a real mongod and runs it as a
+        # single-node replica set, so the transactional integration tests
+        # (RFQ award, escrow release) run for real here.
+        run: npm test
+
+      - name: Build
+        run: npm run build

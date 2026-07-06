@@ -1,8 +1,11 @@
-import { prisma } from "@/lib/prisma";
-import { KycStatus } from "@prisma/client";
+// Pure SeaSharp Trust Score (STS) logic — no I/O, no server-only imports.
+// Safe to import from Client Components (e.g. StsBadge). The DB-backed
+// recompute-and-persist function lives in sts-server.ts so that mongoose
+// (which pulls in Node built-ins like `net`/`tls`) never ends up in a
+// client bundle.
 
-// SeaSharp Trust Score (STS) — composite 0-1000 credit score for exporters.
-// Weights come directly from the product spec (section 07).
+// Composite 0-1000 credit score for exporters. Weights come directly from
+// the product spec (section 07).
 export const STS_WEIGHTS = {
   kyc: 200,
   onTimeDelivery: 240,
@@ -37,8 +40,8 @@ export const STS_TIER_LABELS: Record<StsTier, string> = {
   TRUSTED_PARTNER: "Trusted Partner",
 };
 
-type CalculateInput = {
-  kycStatus: KycStatus;
+export type CalculateInput = {
+  kycStatus: string;
   totalShipments: number;
   onTimeShipments: number;
   escrowReleaseDaysAvg: number | null; // average days from delivery to escrow release
@@ -99,61 +102,4 @@ export function calculateStsScore(input: CalculateInput): StsBreakdown {
     totalScore,
     tier: tierForScore(totalScore),
   };
-}
-
-// Recomputes a user's STS from their live platform history, persists it on
-// the User record, and appends an audit log entry (StsScoreLog).
-export async function recalculateAndSaveSts(userId: string): Promise<StsBreakdown> {
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-
-  const shipments = await prisma.shipment.findMany({ where: { exporterId: userId } });
-  const totalShipments = shipments.length;
-  const onTimeShipments = shipments.filter(
-    (s) => s.deliveredAt && s.customsClearedAt && s.status !== "DISPUTED"
-  ).length;
-  const disputedShipments = shipments.filter((s) => s.status === "DISPUTED").length;
-
-  const escrows = await prisma.escrow.findMany({
-    where: { rfq: { shipment: { exporterId: userId } } },
-  });
-  const releaseDurations = escrows
-    .filter((e) => e.fundedAt && e.releasedAt)
-    .map((e) => (e.releasedAt!.getTime() - e.fundedAt!.getTime()) / (1000 * 60 * 60 * 24));
-  const escrowReleaseDaysAvg =
-    releaseDurations.length > 0
-      ? releaseDurations.reduce((a, b) => a + b, 0) / releaseDurations.length
-      : null;
-
-  const loans = await prisma.tradeLoan.findMany({ where: { exporterId: userId } });
-  const totalLoans = loans.length;
-  const repaidLoans = loans.filter((l) => l.status === "REPAID").length;
-  const defaultedLoans = loans.filter((l) => l.status === "DEFAULTED").length;
-
-  const breakdown = calculateStsScore({
-    kycStatus: user.kycStatus,
-    totalShipments,
-    onTimeShipments,
-    escrowReleaseDaysAvg,
-    disputedShipments,
-    totalLoans,
-    repaidLoans,
-    defaultedLoans,
-  });
-
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: userId }, data: { stsScore: breakdown.totalScore } }),
-    prisma.stsScoreLog.create({
-      data: {
-        userId,
-        totalScore: breakdown.totalScore,
-        kycPoints: breakdown.kycPoints,
-        onTimeDeliveryPoints: breakdown.onTimeDeliveryPoints,
-        escrowSpeedPoints: breakdown.escrowSpeedPoints,
-        disputePoints: breakdown.disputePoints,
-        loanRepaymentPoints: breakdown.loanRepaymentPoints,
-      },
-    }),
-  ]);
-
-  return breakdown;
 }

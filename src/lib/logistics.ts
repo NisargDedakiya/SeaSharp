@@ -1,4 +1,6 @@
-import { FreightMode } from "@prisma/client";
+import type { FREIGHT_MODES } from "@/models/Shipment";
+
+type FreightMode = (typeof FREIGHT_MODES)[number];
 
 const PER_UNIT_RATE: Record<FreightMode, number> = {
   SEA: 0.08,

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
+import mongoose from "mongoose";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withApiHandler, AppError } from "@/lib/api-handler";
+import { Rfq, Bid } from "@/models";
+import { serialize } from "@/lib/serialize";
 
 const bidSchema = z.object({
   pricePerUnit: z.coerce.number().positive(),
@@ -16,42 +19,37 @@ function suggestBidPrice(targetPricePerUnit: number) {
   return Math.round(targetPricePerUnit * 0.97 * 100) / 100;
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export const POST = withApiHandler<{ id: string }>(async (request, { params }) => {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "EXPORTER") {
-    return NextResponse.json({ error: "Only exporters can submit bids." }, { status: 403 });
+    throw new AppError(403, "Only exporters can submit bids.");
   }
 
-  const rfq = await prisma.rfq.findUnique({ where: { id: params.id } });
+  if (!mongoose.isValidObjectId(params.id)) {
+    throw new AppError(404, "RFQ not found.");
+  }
+
+  const rfq = await Rfq.findById(params.id);
   if (!rfq) {
-    return NextResponse.json({ error: "RFQ not found." }, { status: 404 });
+    throw new AppError(404, "RFQ not found.");
   }
   if (rfq.status !== "OPEN") {
-    return NextResponse.json({ error: "This RFQ is no longer accepting bids." }, { status: 409 });
+    throw new AppError(409, "This RFQ is no longer accepting bids.");
   }
   if (new Date() > rfq.deadline) {
-    return NextResponse.json({ error: "The bidding deadline has passed." }, { status: 409 });
+    throw new AppError(409, "The bidding deadline has passed.");
   }
 
   const body = await request.json();
-  const parsed = bidSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
+  const { pricePerUnit, message } = bidSchema.parse(body);
 
   const aiSuggestedPrice = suggestBidPrice(rfq.targetPricePerUnit);
 
-  const bid = await prisma.bid.upsert({
-    where: { rfqId_exporterId: { rfqId: rfq.id, exporterId: session.user.id } },
-    update: { pricePerUnit: parsed.data.pricePerUnit, message: parsed.data.message },
-    create: {
-      rfqId: rfq.id,
-      exporterId: session.user.id,
-      pricePerUnit: parsed.data.pricePerUnit,
-      message: parsed.data.message,
-      aiSuggestedPrice,
-    },
-  });
+  const bid = await Bid.findOneAndUpdate(
+    { rfqId: rfq._id, exporterId: session.user.id },
+    { $set: { pricePerUnit, message }, $setOnInsert: { aiSuggestedPrice } },
+    { upsert: true, returnDocument: "after" }
+  );
 
-  return NextResponse.json(bid, { status: 201 });
-}
+  return NextResponse.json(serialize(bid), { status: 201 });
+});

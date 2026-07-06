@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { withApiHandler } from "@/lib/api-handler";
+import { HsCode } from "@/models";
 
-export async function GET() {
-  const hsCodes = await prisma.hsCode.findMany({ orderBy: { code: "asc" } });
-  return NextResponse.json(hsCodes);
-}
+export const GET = withApiHandler(async () => {
+  const hsCodes = await HsCode.find().sort({ _id: 1 });
+  return NextResponse.json(
+    hsCodes.map((hs) => ({ code: hs._id, description: hs.description, category: hs.category }))
+  );
+});

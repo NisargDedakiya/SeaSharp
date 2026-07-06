@@ -1,6 +1,6 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { dbConnect } from "@/lib/mongoose";
+import { Country, HsCode, TariffRule, ComplianceDocument } from "@/models";
+import mongoose from "mongoose";
 
 const COUNTRIES = [
   { code: "IN", name: "India", zone: "INDIA" as const },
@@ -81,44 +81,41 @@ const ZONE_SPECIFIC_DOCS: Record<string, Array<{ name: string; description: stri
 };
 
 async function main() {
+  await dbConnect();
+
   for (const country of COUNTRIES) {
-    await prisma.country.upsert({ where: { code: country.code }, update: country, create: country });
+    await Country.findByIdAndUpdate(country.code, { _id: country.code, ...country }, { upsert: true });
   }
 
   for (const hs of HS_CODES) {
-    await prisma.hsCode.upsert({ where: { code: hs.code }, update: hs, create: hs });
+    await HsCode.findByIdAndUpdate(hs.code, { _id: hs.code, ...hs }, { upsert: true });
   }
 
   for (const rule of TARIFF_RULES) {
-    await prisma.tariffRule.upsert({
-      where: {
-        hsCode_originCountry_destinationCountry: {
-          hsCode: rule.hsCode,
-          originCountry: rule.originCountry,
-          destinationCountry: rule.destinationCountry,
-        },
-      },
-      update: rule,
-      create: rule,
-    });
+    await TariffRule.findOneAndUpdate(
+      { hsCode: rule.hsCode, originCountry: rule.originCountry, destinationCountry: rule.destinationCountry },
+      rule,
+      { upsert: true }
+    );
   }
 
-  await prisma.complianceDocument.deleteMany();
+  await ComplianceDocument.deleteMany({});
   for (const doc of GENERAL_DOCS) {
-    await prisma.complianceDocument.create({
-      data: { destinationCountry: "*", name: doc.name, description: doc.description, required: true },
+    await ComplianceDocument.create({
+      destinationCountry: "*",
+      name: doc.name,
+      description: doc.description,
+      required: true,
     });
   }
   for (const [destinationCountry, docs] of Object.entries(ZONE_SPECIFIC_DOCS)) {
     for (const doc of docs) {
-      await prisma.complianceDocument.create({
-        data: {
-          destinationCountry,
-          hsCode: doc.hsCode,
-          name: doc.name,
-          description: doc.description,
-          required: true,
-        },
+      await ComplianceDocument.create({
+        destinationCountry,
+        hsCode: doc.hsCode,
+        name: doc.name,
+        description: doc.description,
+        required: true,
       });
     }
   }
@@ -136,5 +133,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await mongoose.disconnect();
   });

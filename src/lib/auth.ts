@@ -1,11 +1,14 @@
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import "server-only";
+import { MongoDBAdapter } from "@next-auth/mongodb-adapter";
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import clientPromise from "@/lib/mongodb-client";
+import { dbConnect } from "@/lib/mongoose";
+import { User } from "@/models";
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  adapter: MongoDBAdapter(clientPromise),
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   providers: [
@@ -18,16 +21,15 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
-        });
+        await dbConnect();
+        const user = await User.findOne({ email: credentials.email.toLowerCase() });
         if (!user) return null;
 
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
 
         return {
-          id: user.id,
+          id: user._id.toString(),
           name: user.name,
           email: user.email,
           role: user.role,

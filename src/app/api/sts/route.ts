@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { recalculateAndSaveSts, tierForScore } from "@/lib/sts";
+import { withApiHandler, AppError } from "@/lib/api-handler";
+import { tierForScore } from "@/lib/sts";
+import { recalculateAndSaveSts } from "@/lib/sts-server";
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    throw new AppError(401, "Sign in required.");
   }
 
   const breakdown = await recalculateAndSaveSts(session.user.id);
   return NextResponse.json({ ...breakdown, tier: tierForScore(breakdown.totalScore) });
-}
+});

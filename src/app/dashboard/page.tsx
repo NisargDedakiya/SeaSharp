@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
+import { dbConnect } from "@/lib/mongoose";
+import { User, Bid, Rfq, Shipment, Escrow, TradeLoan } from "@/models";
 import { getSessionUser } from "@/lib/session";
-import { recalculateAndSaveSts, STS_TIER_LABELS } from "@/lib/sts";
+import { STS_TIER_LABELS } from "@/lib/sts";
+import { recalculateAndSaveSts } from "@/lib/sts-server";
 import { KycPanel } from "@/components/dashboard/KycPanel";
 import { LoanPanel } from "@/components/dashboard/LoanPanel";
 import { StsBadge } from "@/components/StsBadge";
+import { serialize } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
@@ -13,31 +16,35 @@ export default async function DashboardPage() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) redirect("/login");
 
-  const user = await prisma.user.findUniqueOrThrow({ where: { id: sessionUser.id } });
+  await dbConnect();
+  const user = await User.findById(sessionUser.id).orFail();
 
   if (user.role === "EXPORTER") {
-    const breakdown = await recalculateAndSaveSts(user.id);
+    const breakdown = await recalculateAndSaveSts(user._id.toString());
 
-    const bids = await prisma.bid.findMany({
-      where: { exporterId: user.id },
-      include: { rfq: true },
-      orderBy: { createdAt: "desc" },
+    const bids = await Bid.find({ exporterId: user._id })
+      .populate("rfqId", "product unit")
+      .sort({ createdAt: -1 });
+
+    const exporterShipments = await Shipment.find({ exporterId: user._id });
+    const shipmentRfqIds = exporterShipments.map((s) => s.rfqId);
+    const awardedRfqs = await Rfq.find({
+      _id: { $in: shipmentRfqIds },
+      status: { $in: ["AWARDED", "FULFILLED"] },
     });
+    const escrows = await Escrow.find({ rfqId: { $in: awardedRfqs.map((r) => r._id) } });
+    const escrowByRfqId = new Map(escrows.map((e) => [e.rfqId.toString(), e]));
 
-    const awardedRfqs = await prisma.rfq.findMany({
-      where: { shipment: { exporterId: user.id }, status: { in: ["AWARDED", "FULFILLED"] } },
-      include: { escrow: true },
-    });
+    const loans = await TradeLoan.find({ exporterId: user._id }).sort({ requestedAt: -1 });
+    const loanedRfqIds = new Set(loans.filter((l) => l.rfqId).map((l) => l.rfqId!.toString()));
 
-    const loans = await prisma.tradeLoan.findMany({
-      where: { exporterId: user.id },
-      orderBy: { requestedAt: "desc" },
-    });
-
-    const loanedRfqIds = new Set(loans.map((l) => l.rfqId));
     const eligibleRfqs = awardedRfqs
-      .filter((r) => r.escrow && !loanedRfqIds.has(r.id))
-      .map((r) => ({ id: r.id, product: r.product, escrowAmount: r.escrow!.amount }));
+      .filter((r) => escrowByRfqId.has(r._id.toString()) && !loanedRfqIds.has(r._id.toString()))
+      .map((r) => ({
+        id: r._id.toString(),
+        product: r.product,
+        escrowAmount: escrowByRfqId.get(r._id.toString())!.amount,
+      }));
 
     return (
       <main className="mx-auto max-w-4xl px-6 py-16">
@@ -75,7 +82,19 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6">
-          <LoanPanel eligibleRfqs={eligibleRfqs} loans={loans} />
+          <LoanPanel
+            eligibleRfqs={eligibleRfqs}
+            loans={
+              serialize(loans) as Array<{
+                id: string;
+                requestedAmount: number;
+                approvedAmount: number | null;
+                interestRatePercent: number | null;
+                riskBand: string | null;
+                status: string;
+              }>
+            }
+          />
         </div>
 
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
@@ -84,13 +103,19 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm text-slate-500">No bids yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {bids.map((bid) => (
-                <li key={bid.id}>
-                  <Link href={`/marketplace/${bid.rfqId}`} className="text-sm text-slate-300 hover:text-emerald-400">
-                    {bid.rfq.product} — ${bid.pricePerUnit}/{bid.rfq.unit} · {bid.status}
-                  </Link>
-                </li>
-              ))}
+              {bids.map((bid) => {
+                const rfq = bid.rfqId as unknown as { _id: string; product: string; unit: string };
+                return (
+                  <li key={bid._id.toString()}>
+                    <Link
+                      href={`/marketplace/${rfq._id}`}
+                      className="text-sm text-slate-300 hover:text-emerald-400"
+                    >
+                      {rfq.product} — ${bid.pricePerUnit}/{rfq.unit} · {bid.status}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -98,12 +123,22 @@ export default async function DashboardPage() {
     );
   }
 
-  // Importer dashboard
-  const rfqs = await prisma.rfq.findMany({
-    where: { importerId: user.id },
-    include: { _count: { select: { bids: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  // Importer dashboard. Counts bids in-memory rather than via an aggregation
+  // $lookup — see the comment in lib/rfqs.ts for why.
+  const importerRfqs = await Rfq.find({ importerId: user._id }).sort({ createdAt: -1 });
+  const importerRfqBids = await Bid.find(
+    { rfqId: { $in: importerRfqs.map((r) => r._id) } },
+    { rfqId: 1 }
+  );
+  const importerBidCountByRfqId = new Map<string, number>();
+  for (const bid of importerRfqBids) {
+    const key = bid.rfqId.toString();
+    importerBidCountByRfqId.set(key, (importerBidCountByRfqId.get(key) ?? 0) + 1);
+  }
+  const rfqs = importerRfqs.map((rfq) => ({
+    ...rfq.toObject(),
+    bidCount: importerBidCountByRfqId.get(rfq._id.toString()) ?? 0,
+  }));
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
@@ -126,13 +161,15 @@ export default async function DashboardPage() {
           <p className="mt-2 text-sm text-slate-500">You haven&apos;t posted any RFQs yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {rfqs.map((rfq) => (
-              <li key={rfq.id}>
-                <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-emerald-400">
-                  {rfq.product} — {rfq.status} · {rfq._count.bids} bids
-                </Link>
-              </li>
-            ))}
+            {(serialize(rfqs) as Array<{ id: string; product: string; status: string; bidCount: number }>).map(
+              (rfq) => (
+                <li key={rfq.id}>
+                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-emerald-400">
+                    {rfq.product} — {rfq.status} · {rfq.bidCount} bids
+                  </Link>
+                </li>
+              )
+            )}
           </ul>
         )}
       </div>

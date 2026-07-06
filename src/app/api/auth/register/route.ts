@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { withApiHandler, AppError } from "@/lib/api-handler";
+import { User } from "@/models";
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -12,32 +13,31 @@ const registerSchema = z.object({
   country: z.string().optional(),
 });
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const parsed = registerSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
+export const POST = withApiHandler(
+  async (request: Request) => {
+    const body = await request.json();
+    const { name, email, password, role, companyName, country } = registerSchema.parse(body);
 
-  const { name, email, password, role, companyName, country } = parsed.data;
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      throw new AppError(409, "An account with that email already exists.");
+    }
 
-  const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-  if (existing) {
-    return NextResponse.json({ error: "An account with that email already exists." }, { status: 409 });
-  }
+    const passwordHash = await bcrypt.hash(password, 10);
 
-  const passwordHash = await bcrypt.hash(password, 10);
-
-  const user = await prisma.user.create({
-    data: {
+    const user = await User.create({
       name,
       email: email.toLowerCase(),
       passwordHash,
       role,
       companyName,
       country,
-    },
-  });
+    });
 
-  return NextResponse.json({ id: user.id, email: user.email, role: user.role }, { status: 201 });
-}
+    return NextResponse.json(
+      { id: user._id.toString(), email: user.email, role: user.role },
+      { status: 201 }
+    );
+  },
+  { rateLimit: { limit: 10, windowMs: 10 * 60_000 } }
+);

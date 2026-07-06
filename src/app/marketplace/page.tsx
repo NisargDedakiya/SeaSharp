@@ -1,19 +1,28 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { dbConnect } from "@/lib/mongoose";
+import { listOpenRfqs } from "@/lib/rfqs";
 import { getSessionUser } from "@/lib/session";
+import { serialize } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
+type RfqListItem = {
+  id: string;
+  product: string;
+  volume: number;
+  unit: string;
+  originCountry: string;
+  destinationCountry: string;
+  targetPricePerUnit: number;
+  deadline: string;
+  bidCount: number;
+  importer: { name: string; companyName: string | null };
+};
+
 export default async function MarketplacePage() {
   const user = await getSessionUser();
-  const rfqs = await prisma.rfq.findMany({
-    where: { status: "OPEN" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      importer: { select: { name: true, companyName: true } },
-      _count: { select: { bids: true } },
-    },
-  });
+  await dbConnect();
+  const rfqs = serialize(await listOpenRfqs()) as RfqListItem[];
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
@@ -47,7 +56,7 @@ export default async function MarketplacePage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-slate-100">{rfq.product}</h2>
               <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-                {rfq._count.bids} bid{rfq._count.bids === 1 ? "" : "s"}
+                {rfq.bidCount} bid{rfq.bidCount === 1 ? "" : "s"}
               </span>
             </div>
             <p className="mt-1 text-sm text-slate-400">

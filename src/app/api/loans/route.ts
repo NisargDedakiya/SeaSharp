@@ -2,70 +2,61 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withApiHandler, AppError } from "@/lib/api-handler";
+import { Rfq, Escrow, Shipment, User, TradeLoan } from "@/models";
 import { scoreLoanRequest } from "@/lib/creditlayer";
+import { serialize } from "@/lib/serialize";
 
 const loanSchema = z.object({
   rfqId: z.string(),
   requestedAmount: z.coerce.number().positive(),
 });
 
-export async function GET() {
+export const GET = withApiHandler(async () => {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
-    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+    throw new AppError(401, "Sign in required.");
   }
-  const loans = await prisma.tradeLoan.findMany({
-    where: { exporterId: session.user.id },
-    orderBy: { requestedAt: "desc" },
-  });
-  return NextResponse.json(loans);
-}
+  const loans = await TradeLoan.find({ exporterId: session.user.id }).sort({ requestedAt: -1 });
+  return NextResponse.json(serialize(loans));
+});
 
 // PO-backed trade finance request (spec Pillar D). Only an exporter holding
 // an awarded, escrow-funded RFQ (a "platform-verified purchase order") can
 // request an advance against it, scored by CreditLayer off their STS.
-export async function POST(request: Request) {
+export const POST = withApiHandler(async (request: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "EXPORTER") {
-    return NextResponse.json({ error: "Only exporters can request PO financing." }, { status: 403 });
+    throw new AppError(403, "Only exporters can request PO financing.");
   }
 
   const body = await request.json();
-  const parsed = loanSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  const { rfqId, requestedAmount } = loanSchema.parse(body);
+
+  const rfq = await Rfq.findById(rfqId);
+  const escrow = rfq ? await Escrow.findOne({ rfqId: rfq._id }) : null;
+  const shipment = rfq ? await Shipment.findOne({ rfqId: rfq._id }) : null;
+
+  if (!rfq || !escrow || shipment?.exporterId.toString() !== session.user.id) {
+    throw new AppError(404, "No verified purchase order found for this exporter on that RFQ.");
   }
 
-  const rfq = await prisma.rfq.findUnique({
-    where: { id: parsed.data.rfqId },
-    include: { escrow: true, shipment: true },
-  });
-  if (!rfq || !rfq.escrow || rfq.shipment?.exporterId !== session.user.id) {
-    return NextResponse.json(
-      { error: "No verified purchase order found for this exporter on that RFQ." },
-      { status: 404 }
-    );
-  }
-
-  const exporter = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
+  const exporter = await User.findById(session.user.id).orFail();
   const decision = scoreLoanRequest({
     stsScore: exporter.stsScore,
-    requestedAmount: parsed.data.requestedAmount,
-    poValue: rfq.escrow.amount,
+    requestedAmount,
+    poValue: escrow.amount,
   });
 
-  const loan = await prisma.tradeLoan.create({
-    data: {
-      exporterId: session.user.id,
-      rfqId: rfq.id,
-      requestedAmount: parsed.data.requestedAmount,
-      approvedAmount: decision.approvedAmount,
-      interestRatePercent: decision.interestRatePercent,
-      riskBand: decision.riskBand,
-      status: decision.approved ? "APPROVED" : "REJECTED",
-    },
+  const loan = await TradeLoan.create({
+    exporterId: session.user.id,
+    rfqId: rfq._id,
+    requestedAmount,
+    approvedAmount: decision.approvedAmount,
+    interestRatePercent: decision.interestRatePercent,
+    riskBand: decision.riskBand,
+    status: decision.approved ? "APPROVED" : "REJECTED",
   });
 
-  return NextResponse.json({ loan, decision }, { status: 201 });
-}
+  return NextResponse.json({ loan: serialize(loan), decision }, { status: 201 });
+});

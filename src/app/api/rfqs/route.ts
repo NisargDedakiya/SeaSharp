@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { withApiHandler, AppError } from "@/lib/api-handler";
+import { Rfq } from "@/models";
+import { listOpenRfqs } from "@/lib/rfqs";
+import { serialize } from "@/lib/serialize";
 
 const createRfqSchema = z.object({
   product: z.string().min(2),
@@ -16,33 +19,21 @@ const createRfqSchema = z.object({
   deadline: z.coerce.date(),
 });
 
-export async function GET() {
-  const rfqs = await prisma.rfq.findMany({
-    where: { status: "OPEN" },
-    orderBy: { createdAt: "desc" },
-    include: {
-      importer: { select: { name: true, companyName: true, country: true } },
-      _count: { select: { bids: true } },
-    },
-  });
-  return NextResponse.json(rfqs);
-}
+export const GET = withApiHandler(async () => {
+  const rfqs = await listOpenRfqs();
+  return NextResponse.json(serialize(rfqs));
+});
 
-export async function POST(request: Request) {
+export const POST = withApiHandler(async (request: Request) => {
   const session = await getServerSession(authOptions);
   if (!session?.user || session.user.role !== "IMPORTER") {
-    return NextResponse.json({ error: "Only importers can post RFQs." }, { status: 403 });
+    throw new AppError(403, "Only importers can post RFQs.");
   }
 
   const body = await request.json();
-  const parsed = createRfqSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
+  const data = createRfqSchema.parse(body);
 
-  const rfq = await prisma.rfq.create({
-    data: { ...parsed.data, importerId: session.user.id },
-  });
+  const rfq = await Rfq.create({ ...data, importerId: session.user.id });
 
-  return NextResponse.json(rfq, { status: 201 });
-}
+  return NextResponse.json(serialize(rfq), { status: 201 });
+});
