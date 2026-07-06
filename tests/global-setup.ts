@@ -30,7 +30,14 @@ export async function setup() {
 
   const { MongoMemoryReplSet } = await import("mongodb-memory-server");
   replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-  process.env.MONGODB_URI = `${replSet.getUri()}seasharp-test`;
+  // getUri(dbName) inserts the database name as a path segment ahead of the
+  // `?replicaSet=...` query string. Naively concatenating a db name onto the
+  // end of getUri()'s return value instead corrupts the replicaSet query
+  // param itself (e.g. "replicaSet=testset" + "seasharp-test" collapses into
+  // the single bogus set name "testsetseasharp-test"), which is why this
+  // used to hang for the full server-selection timeout instead of failing
+  // fast.
+  process.env.MONGODB_URI = replSet.getUri("seasharp-test");
 }
 
 export async function teardown() {
