@@ -3,6 +3,9 @@ import { StatTile } from "@/components/landing/StatTile";
 import { SectionHeading } from "@/components/landing/SectionHeading";
 import { PillarCard } from "@/components/landing/PillarCard";
 import { HeroIntro } from "@/components/landing/HeroIntro";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Faq } from "@/components/landing/Faq";
+import { TrustStrip } from "@/components/TrustStrip";
 import { Reveal, RevealStagger, RevealStaggerItem } from "@/components/Reveal";
 
 const ECOSYSTEM = [
@@ -85,7 +88,11 @@ export default function Home() {
         <div className="relative">
           <HeroIntro />
 
-          <RevealStagger className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
+          <Reveal delay={0.3}>
+            <TrustStrip className="mt-8" />
+          </Reveal>
+
+          <RevealStagger className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
             <RevealStaggerItem>
               <StatTile value="$32T" label="Global Trade / Year" />
             </RevealStaggerItem>
@@ -100,6 +107,18 @@ export default function Home() {
             </RevealStaggerItem>
           </RevealStagger>
         </div>
+      </section>
+
+      {/* How it works */}
+      <section className="px-6 py-24">
+        <Reveal>
+          <SectionHeading
+            eyebrow="How It Works"
+            title="From RFQ to Delivery, in Four Steps"
+            subtitle="The same escrow-backed flow whether you're sourcing or exporting."
+          />
+        </Reveal>
+        <HowItWorks />
       </section>
 
       {/* Trade Ecosystem */}
@@ -392,6 +411,20 @@ export default function Home() {
             </RevealStaggerItem>
           ))}
         </RevealStagger>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
+        <Reveal>
+          <SectionHeading
+            eyebrow="FAQ"
+            title="Common Questions"
+            subtitle="Everything you need to know before your first RFQ or bid."
+          />
+        </Reveal>
+        <Reveal delay={0.1}>
+          <Faq />
+        </Reveal>
       </section>
 
       {/* CTA */}

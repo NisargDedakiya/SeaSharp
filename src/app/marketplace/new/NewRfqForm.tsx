@@ -2,16 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { COUNTRY_NAMES } from "@/lib/countries";
 
 type HsCode = { code: string; description: string; category: string };
 
-const COUNTRIES = [
-  { code: "IN", name: "India" },
-  { code: "AE", name: "United Arab Emirates" },
-  { code: "US", name: "United States" },
-  { code: "DE", name: "Germany" },
-  { code: "CN", name: "China" },
-];
+const COUNTRIES = Object.entries(COUNTRY_NAMES).map(([code, name]) => ({ code, name }));
 
 export function NewRfqForm() {
   const router = useRouter();

@@ -10,7 +10,7 @@ import { Rfq, Bid } from "@/models";
 export async function listOpenRfqs() {
   const rfqs = await Rfq.find({ status: "OPEN" })
     .sort({ createdAt: -1 })
-    .populate("importerId", "name companyName country");
+    .populate("importerId", "name companyName country kycStatus");
 
   const rfqIds = rfqs.map((rfq) => rfq._id);
   const bids = await Bid.find({ rfqId: { $in: rfqIds } }, { rfqId: 1 });
