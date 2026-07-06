@@ -2,8 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: rgb(56 189 248 / 0.35);
+  color: #f0f9ff;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-1.5deg);
+  }
+}
+
+@keyframes aurora {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(3%, -4%) scale(1.08);
+  }
+}
+
+.animate-bob {
+  animation: bob 6s ease-in-out infinite;
+}
+
+.animate-aurora {
+  animation: aurora 12s ease-in-out infinite;
 }

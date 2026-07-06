@@ -82,7 +82,7 @@ export function EscrowTracker({
             <span
               className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs ${
                 m.status === "COMPLETE"
-                  ? "bg-emerald-500 text-slate-950"
+                  ? "bg-sky-500 text-slate-950"
                   : "border border-slate-600 text-slate-600"
               }`}
             >
@@ -101,7 +101,7 @@ export function EscrowTracker({
         <button
           onClick={handleAdvance}
           disabled={loading}
-          className="mt-4 rounded-md bg-emerald-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+          className="mt-4 rounded-md bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
         >
           {loading ? "Updating..." : `Mark "${nextMilestone.name}" Complete`}
         </button>

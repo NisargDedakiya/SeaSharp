@@ -84,11 +84,11 @@ export function LoanPanel({
             />
           </label>
           {error && <p className="text-sm text-red-400">{error}</p>}
-          {decision && <p className="text-sm text-emerald-400">{decision}</p>}
+          {decision && <p className="text-sm text-sky-400">{decision}</p>}
           <button
             type="submit"
             disabled={loading}
-            className="self-start rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+            className="self-start rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
           >
             {loading ? "Submitting..." : "Request Financing"}
           </button>

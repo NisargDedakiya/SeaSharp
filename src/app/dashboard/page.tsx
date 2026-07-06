@@ -109,7 +109,7 @@ export default async function DashboardPage() {
                   <li key={bid._id.toString()}>
                     <Link
                       href={`/marketplace/${rfq._id}`}
-                      className="text-sm text-slate-300 hover:text-emerald-400"
+                      className="text-sm text-slate-300 hover:text-sky-400"
                     >
                       {rfq.product} — ${bid.pricePerUnit}/{rfq.unit} · {bid.status}
                     </Link>
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/marketplace/new"
-          className="rounded-md bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+          className="rounded-md bg-sky-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400"
         >
           Post an RFQ
         </Link>
@@ -164,7 +164,7 @@ export default async function DashboardPage() {
             {(serialize(rfqs) as Array<{ id: string; product: string; status: string; bidCount: number }>).map(
               (rfq) => (
                 <li key={rfq.id}>
-                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-emerald-400">
+                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
                     {rfq.product} — {rfq.status} · {rfq.bidCount} bids
                   </Link>
                 </li>

@@ -82,7 +82,7 @@ export function BidList({
                 <button
                   onClick={() => handleAward(bid.id)}
                   disabled={awardingId === bid.id}
-                  className="rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                  className="rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
                 >
                   {awardingId === bid.id ? "Awarding..." : "Award"}
                 </button>

@@ -81,7 +81,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
-      <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+      <p className="text-sm font-semibold uppercase tracking-widest text-sky-400">
         {rfq.originCountry} → {rfq.destinationCountry} · HS {rfq.hsCode}
       </p>
       <h1 className="mt-2 text-3xl font-bold text-slate-50">{rfq.product}</h1>
@@ -130,7 +130,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
 
       {!user && (
         <p className="mt-10 text-sm text-slate-500">
-          <a href="/login" className="text-emerald-400 hover:underline">
+          <a href="/login" className="text-sky-400 hover:underline">
             Sign in
           </a>{" "}
           to bid on this RFQ.

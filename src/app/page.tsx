@@ -2,6 +2,8 @@ import Link from "next/link";
 import { StatTile } from "@/components/landing/StatTile";
 import { SectionHeading } from "@/components/landing/SectionHeading";
 import { PillarCard } from "@/components/landing/PillarCard";
+import { HeroIntro } from "@/components/landing/HeroIntro";
+import { Reveal, RevealStagger, RevealStaggerItem } from "@/components/Reveal";
 
 const ECOSYSTEM = [
   { role: "Exporters", body: "Find buyers, create quotations, generate documents, manage shipments, receive payments, apply for trade finance.", live: true },
@@ -70,77 +72,77 @@ export default function Home() {
   return (
     <main>
       {/* Hero */}
-      <section className="border-b border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24">
-        <div className="mx-auto max-w-5xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
-            One Platform. Every Trade. Anywhere in the World.
-          </p>
-          <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-50 sm:text-6xl">
-            The Global Trade Infrastructure Platform
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-400">
-            SeaSharp unifies trade intelligence, compliance, documentation, logistics, finance,
-            supplier verification, and shipment management into one ecosystem — from supplier
-            discovery to warehouse delivery.
-          </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/compliance-checker"
-              className="rounded-md bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-            >
-              Try the Free Compliance Checker
-            </Link>
-            <Link
-              href="/marketplace"
-              className="rounded-md border border-slate-700 px-6 py-3 text-sm font-semibold text-slate-100 hover:border-slate-500"
-            >
-              Browse RFQ Marketplace
-            </Link>
-          </div>
-        </div>
+      <section className="relative overflow-hidden border-b border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24">
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-sky-500/20 blur-3xl"
+        />
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute -bottom-40 right-0 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl [animation-delay:-6s]"
+        />
 
-        <div className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile value="$32T" label="Global Trade / Year" />
-          <StatTile value="80%" label="Still Managed via Email" />
-          <StatTile value="500M+" label="SME Exporters Worldwide" />
-          <StatTile value="$1.5T" label="SME Trade Finance Gap" />
+        <div className="relative">
+          <HeroIntro />
+
+          <RevealStagger className="mx-auto mt-16 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
+            <RevealStaggerItem>
+              <StatTile value="$32T" label="Global Trade / Year" />
+            </RevealStaggerItem>
+            <RevealStaggerItem>
+              <StatTile value="80%" label="Still Managed via Email" />
+            </RevealStaggerItem>
+            <RevealStaggerItem>
+              <StatTile value="500M+" label="SME Exporters Worldwide" />
+            </RevealStaggerItem>
+            <RevealStaggerItem>
+              <StatTile value="$1.5T" label="SME Trade Finance Gap" />
+            </RevealStaggerItem>
+          </RevealStagger>
         </div>
       </section>
 
       {/* Trade Ecosystem */}
       <section className="px-6 py-24">
-        <SectionHeading
-          eyebrow="Trade Ecosystem"
-          title="Built for Every Actor in Global Trade"
-          subtitle="SeaSharp connects the entire trade lifecycle — not just buyers and sellers."
-        />
-        <div className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal>
+          <SectionHeading
+            eyebrow="Trade Ecosystem"
+            title="Built for Every Actor in Global Trade"
+            subtitle="SeaSharp connects the entire trade lifecycle — not just buyers and sellers."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ECOSYSTEM.map((e) => (
-            <div key={e.role} className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-semibold text-slate-100">{e.role}</h3>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    e.live ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {e.live ? "Live" : "Coming Soon"}
-                </span>
+            <RevealStaggerItem key={e.role}>
+              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-slate-100">{e.role}</h3>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      e.live ? "bg-sky-500/15 text-sky-400" : "bg-slate-800 text-slate-400"
+                    }`}
+                  >
+                    {e.live ? "Live" : "Coming Soon"}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-400">{e.body}</p>
               </div>
-              <p className="mt-2 text-sm text-slate-400">{e.body}</p>
-            </div>
+            </RevealStaggerItem>
           ))}
-        </div>
+        </RevealStagger>
       </section>
 
       {/* Core platform modules */}
       <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
-        <SectionHeading
-          eyebrow="Core Platform Modules"
-          title="One Connected Ecosystem"
-          subtitle="Each module creates value on its own. Together they form a closed loop with compounding network effects."
-        />
-        <div className="mx-auto mt-12 grid max-w-6xl gap-6 sm:grid-cols-2">
+        <Reveal>
+          <SectionHeading
+            eyebrow="Core Platform Modules"
+            title="One Connected Ecosystem"
+            subtitle="Each module creates value on its own. Together they form a closed loop with compounding network effects."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-6 sm:grid-cols-2">
+          <RevealStaggerItem>
           <PillarCard
             letter="A"
             title="Trade Intelligence"
@@ -152,6 +154,8 @@ export default function Home() {
               "Landed Cost Calculator",
             ]}
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="B"
             title="Documentation"
@@ -164,6 +168,8 @@ export default function Home() {
             ]}
             status="Roadmap"
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="C"
             title="RFQ Marketplace"
@@ -175,6 +181,8 @@ export default function Home() {
               "SeaSharp Trust Score (STS) placement",
             ]}
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="D"
             title="Logistics & Tracking"
@@ -186,6 +194,8 @@ export default function Home() {
               "Live milestone tracking dashboard",
             ]}
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="E"
             title="Trade Finance"
@@ -197,6 +207,8 @@ export default function Home() {
               "STS-gated interest rates",
             ]}
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="F"
             title="Verification & Trust"
@@ -208,6 +220,8 @@ export default function Home() {
               "Premium badge for trusted partners",
             ]}
           />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
           <PillarCard
             letter="G"
             title="Security Platform"
@@ -220,79 +234,114 @@ export default function Home() {
             ]}
             status="Roadmap"
           />
-        </div>
+          </RevealStaggerItem>
+        </RevealStagger>
       </section>
 
       {/* AI modules */}
       <section className="px-6 py-24">
-        <SectionHeading
-          eyebrow="SeaSharp AI"
-          title="AI Modules That Make the Platform Self-Improving"
-          subtitle="Every transaction trains the models. Every model makes the next transaction cheaper, faster, and safer."
-        />
-        <div className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Reveal>
+          <SectionHeading
+            eyebrow="SeaSharp AI"
+            title="AI Modules That Make the Platform Self-Improving"
+            subtitle="Every transaction trains the models. Every model makes the next transaction cheaper, faster, and safer."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {AI_MODULES.map((m) => (
-            <div key={m.name} className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-semibold text-emerald-400">{m.name}</h3>
-                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
-                  Live
-                </span>
+            <RevealStaggerItem key={m.name}>
+              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-sky-400">{m.name}</h3>
+                  <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-400">
+                    Live
+                  </span>
+                </div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">{m.tag}</p>
+                <p className="mt-2 text-sm text-slate-400">{m.body}</p>
               </div>
-              <p className="text-xs uppercase tracking-wide text-slate-500">{m.tag}</p>
-              <p className="mt-2 text-sm text-slate-400">{m.body}</p>
-            </div>
+            </RevealStaggerItem>
           ))}
           {AI_MODULES_ROADMAP.map((m) => (
-            <div key={m.name} className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="font-semibold text-slate-300">{m.name}</h3>
-                <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-400">
-                  Roadmap
-                </span>
+            <RevealStaggerItem key={m.name}>
+              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-slate-300">{m.name}</h3>
+                  <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-400">
+                    Roadmap
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-400">{m.body}</p>
               </div>
-              <p className="mt-2 text-sm text-slate-400">{m.body}</p>
-            </div>
+            </RevealStaggerItem>
           ))}
-        </div>
+        </RevealStagger>
       </section>
 
       {/* STS */}
       <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
-        <SectionHeading
-          eyebrow="SeaSharp Trust Score"
-          title="STS — The Credit Score for Trade"
-          subtitle="A composite 0–1000 score for every exporter. Determines bid visibility, PO loan eligibility, and interest rate bands."
-        />
-        <div className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-4">
-          <StatTile value="0–400" label="New" />
-          <StatTile value="401–650" label="Verified" />
-          <StatTile value="651–800" label="Reliable" />
-          <StatTile value="801–1000" label="Trusted Partner" />
-        </div>
+        <Reveal>
+          <SectionHeading
+            eyebrow="SeaSharp Trust Score"
+            title="STS — The Credit Score for Trade"
+            subtitle="A composite 0–1000 score for every exporter. Determines bid visibility, PO loan eligibility, and interest rate bands."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-4">
+          <RevealStaggerItem>
+            <StatTile value="0–400" label="New" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="401–650" label="Verified" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="651–800" label="Reliable" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="801–1000" label="Trusted Partner" />
+          </RevealStaggerItem>
+        </RevealStagger>
       </section>
 
       {/* Unit economics */}
       <section className="px-6 py-24">
-        <SectionHeading
-          eyebrow="Unit Economics"
-          title="Three Revenue Streams, One Transaction"
-          subtitle="A single average trade transaction generates revenue from escrow, logistics, and finance simultaneously."
-        />
-        <div className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile value="$25K" label="Avg. Deal Size" />
-          <StatTile value="$500" label="Escrow Fee (2%)" />
-          <StatTile value="$360" label="Logistics Margin (12%)" />
-          <StatTile value="$120" label="Finance Yield (0.5%)" />
-        </div>
-        <div className="mx-auto mt-4 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatTile value="$980" label="Revenue / Transaction" />
-          <StatTile value="500" label="Deals / Month (Yr 2)" />
-          <StatTile value="$490K" label="MRR Target (Yr 2)" />
-          <StatTile value="~$6M" label="ARR Run Rate" />
-        </div>
+        <Reveal>
+          <SectionHeading
+            eyebrow="Unit Economics"
+            title="Three Revenue Streams, One Transaction"
+            subtitle="A single average trade transaction generates revenue from escrow, logistics, and finance simultaneously."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
+          <RevealStaggerItem>
+            <StatTile value="$25K" label="Avg. Deal Size" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="$500" label="Escrow Fee (2%)" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="$360" label="Logistics Margin (12%)" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="$120" label="Finance Yield (0.5%)" />
+          </RevealStaggerItem>
+        </RevealStagger>
+        <RevealStagger className="mx-auto mt-4 grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
+          <RevealStaggerItem>
+            <StatTile value="$980" label="Revenue / Transaction" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="500" label="Deals / Month (Yr 2)" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="$490K" label="MRR Target (Yr 2)" />
+          </RevealStaggerItem>
+          <RevealStaggerItem>
+            <StatTile value="~$6M" label="ARR Run Rate" />
+          </RevealStaggerItem>
+        </RevealStagger>
 
-        <div className="mx-auto mt-12 max-w-4xl rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+        <Reveal className="mx-auto mt-12 max-w-4xl rounded-xl border border-slate-800 bg-slate-900/40 p-6">
           <h3 className="font-semibold text-slate-100">Revenue Model</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {REVENUE_STREAMS.map((r) => (
@@ -301,60 +350,70 @@ export default function Home() {
               </span>
             ))}
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Roadmap */}
       <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
-        <SectionHeading
-          eyebrow="Roadmap"
-          title="From Foundation to Global Infrastructure"
-          subtitle="Each phase funds and unlocks the next."
-        />
-        <div className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Reveal>
+          <SectionHeading
+            eyebrow="Roadmap"
+            title="From Foundation to Global Infrastructure"
+            subtitle="Each phase funds and unlocks the next."
+          />
+        </Reveal>
+        <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {ROADMAP.map((p) => (
-            <div key={p.phase} className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold uppercase tracking-widest text-emerald-400">
-                  {p.phase}
-                </p>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                    p.status === "Live"
-                      ? "bg-emerald-500/15 text-emerald-400"
-                      : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {p.status}
-                </span>
+            <RevealStaggerItem key={p.phase}>
+              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-sky-400">
+                    {p.phase}
+                  </p>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                      p.status === "Live"
+                        ? "bg-sky-500/15 text-sky-400"
+                        : "bg-slate-800 text-slate-400"
+                    }`}
+                  >
+                    {p.status}
+                  </span>
+                </div>
+                <h3 className="mt-1 font-semibold text-slate-100">{p.title}</h3>
+                <ul className="mt-3 space-y-1.5">
+                  {p.items.map((item) => (
+                    <li key={item} className="text-sm text-slate-400">
+                      → {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <h3 className="mt-1 font-semibold text-slate-100">{p.title}</h3>
-              <ul className="mt-3 space-y-1.5">
-                {p.items.map((item) => (
-                  <li key={item} className="text-sm text-slate-400">
-                    → {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            </RevealStaggerItem>
           ))}
-        </div>
+        </RevealStagger>
       </section>
 
       {/* CTA */}
-      <section className="border-t border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24 text-center">
-        <h2 className="text-3xl font-bold text-slate-50">One platform. Every trade. Anywhere in the world.</h2>
-        <p className="mx-auto mt-4 max-w-xl text-slate-400">
-          Phase 1 starts with one corridor: India → UAE agricultural exports.
-        </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Link
-            href="/register"
-            className="rounded-md bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-          >
-            Join as Exporter or Importer
-          </Link>
-        </div>
+      <section className="relative overflow-hidden border-t border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24 text-center">
+        <div
+          aria-hidden
+          className="animate-aurora pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-sky-500/15 blur-3xl"
+        />
+        <Reveal className="relative">
+          <h2 className="text-3xl font-bold text-slate-50">One platform. Every trade. Anywhere in the world.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-slate-400">
+            Phase 1 starts with one corridor: India → UAE agricultural exports.
+          </p>
+          <div className="mt-8 flex justify-center gap-4">
+            <Link
+              href="/register"
+              className="rounded-md bg-gradient-to-r from-sky-500 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_30px_-6px_rgba(56,189,248,0.6)] transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
+            >
+              Join as Exporter or Importer
+            </Link>
+          </div>
+        </Reveal>
       </section>
 
       <footer className="border-t border-slate-800 px-6 py-10 text-center text-sm text-slate-500">

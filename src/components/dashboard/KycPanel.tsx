@@ -25,7 +25,7 @@ export function KycPanel({ kycStatus }: { kycStatus: string }) {
     return (
       <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
         <h2 className="font-semibold text-slate-100">KYC / KYB</h2>
-        <p className="mt-2 text-sm text-emerald-400">✓ Verified by SupplierRadar</p>
+        <p className="mt-2 text-sm text-sky-400">✓ Verified by SupplierRadar</p>
       </div>
     );
   }
@@ -46,7 +46,7 @@ export function KycPanel({ kycStatus }: { kycStatus: string }) {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="mt-3 rounded-md bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+        className="mt-3 rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
       >
         {loading ? "Checking..." : "Submit for Verification"}
       </button>

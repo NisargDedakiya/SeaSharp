@@ -67,7 +67,7 @@ export default function ComplianceCheckerPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
-      <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+      <p className="text-sm font-semibold uppercase tracking-widest text-sky-400">
         Free Tool · No Account Needed
       </p>
       <h1 className="mt-2 text-3xl font-bold text-slate-50 sm:text-4xl">Compliance Checker</h1>
@@ -143,7 +143,7 @@ export default function ComplianceCheckerPage() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-md bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50 sm:col-span-2"
+          className="rounded-md bg-sky-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50 sm:col-span-2"
         >
           {loading ? "Checking..." : "Check Compliance"}
         </button>
@@ -158,7 +158,7 @@ export default function ComplianceCheckerPage() {
       {result && (
         <div className="mt-10 space-y-6">
           <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-            <h2 className="text-lg font-semibold text-emerald-400">
+            <h2 className="text-lg font-semibold text-sky-400">
               HS Code {result.hsCode.code}
             </h2>
             <p className="text-slate-300">{result.hsCode.description}</p>
@@ -195,7 +195,7 @@ export default function ComplianceCheckerPage() {
                 <dt>Estimated freight</dt>
                 <dd className="text-right text-slate-200">${result.landedCost.estimatedFreight.toLocaleString()}</dd>
                 <dt className="font-semibold text-slate-200">Total landed cost</dt>
-                <dd className="text-right font-semibold text-emerald-400">
+                <dd className="text-right font-semibold text-sky-400">
                   ${result.landedCost.landedCost.toLocaleString()}
                 </dd>
               </dl>

@@ -166,7 +166,7 @@ export function NewRfqForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-2 rounded-md bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+        className="mt-2 rounded-md bg-sky-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
       >
         {loading ? "Posting..." : "Post RFQ"}
       </button>

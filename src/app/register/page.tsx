@@ -66,7 +66,7 @@ export default function RegisterPage() {
               onClick={() => setForm((f) => ({ ...f, role }))}
               className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium ${
                 form.role === role
-                  ? "border-emerald-500 bg-emerald-500/10 text-emerald-400"
+                  ? "border-sky-500 bg-sky-500/10 text-sky-400"
                   : "border-slate-700 text-slate-300"
               }`}
             >
@@ -122,7 +122,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 rounded-md bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+          className="mt-2 rounded-md bg-sky-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}
         </button>

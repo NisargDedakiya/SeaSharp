@@ -28,7 +28,7 @@ export default async function MarketplacePage() {
     <main className="mx-auto max-w-5xl px-6 py-16">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-400">
+          <p className="text-sm font-semibold uppercase tracking-widest text-sky-400">
             Pillar B · Reverse-Auction RFQ
           </p>
           <h1 className="mt-2 text-3xl font-bold text-slate-50">RFQ Marketplace</h1>
@@ -36,7 +36,7 @@ export default async function MarketplacePage() {
         {user?.role === "IMPORTER" && (
           <Link
             href="/marketplace/new"
-            className="rounded-md bg-emerald-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+            className="rounded-md bg-sky-500 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400"
           >
             Post an RFQ
           </Link>
@@ -55,7 +55,7 @@ export default async function MarketplacePage() {
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-slate-100">{rfq.product}</h2>
-              <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
+              <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
                 {rfq.bidCount} bid{rfq.bidCount === 1 ? "" : "s"}
               </span>
             </div>

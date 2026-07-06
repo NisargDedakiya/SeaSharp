@@ -61,7 +61,7 @@ export function BidPanel({
       </p>
 
       {existingBid?.aiSuggestedPrice && (
-        <p className="mt-3 rounded-md bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+        <p className="mt-3 rounded-md bg-sky-500/10 px-3 py-2 text-sm text-sky-400">
           BidSense suggests ${existingBid.aiSuggestedPrice}/{unit} to stay competitive.
         </p>
       )}
@@ -92,7 +92,7 @@ export function BidPanel({
         <button
           type="submit"
           disabled={loading}
-          className="self-start rounded-md bg-emerald-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+          className="self-start rounded-md bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
         >
           {loading ? "Submitting..." : existingBid ? "Update Bid" : "Submit Bid"}
         </button>
