@@ -1,13 +1,12 @@
 import "server-only";
 import pino from "pino";
 
-// pino-pretty is a dev-only dependency; in production we emit plain JSON
-// lines, which is what log aggregators (Datadog, CloudWatch, etc.) expect.
+// pino-pretty's worker-thread transport doesn't reliably resolve under
+// Next.js dev's webpack bundling (worker.js path resolution breaks after a
+// `.next` cache clear/rebuild) — it's not worth the flakiness for console
+// colorizing. Plain JSON lines everywhere, which is also what log
+// aggregators (Datadog, CloudWatch, etc.) expect in production anyway.
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
-  transport:
-    process.env.NODE_ENV !== "production"
-      ? { target: "pino-pretty", options: { colorize: true, translateTime: "HH:MM:ss", ignore: "pid,hostname" } }
-      : undefined,
   redact: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.passwordHash"],
 });

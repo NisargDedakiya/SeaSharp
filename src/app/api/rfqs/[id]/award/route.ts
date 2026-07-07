@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import mongoose from "mongoose";
-import { authOptions } from "@/lib/auth";
+import { eq, and, ne } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { Rfq, Bid, User, Escrow, Shipment } from "@/models";
+import { serviceDb } from "@/db/client";
+import { rfqs, bids, organizations, escrowAccounts, escrowMilestones, shipments } from "@/db/schema";
 import { ESCROW_MILESTONES, recommendRoute } from "@/lib/logistics";
-import { serialize } from "@/lib/serialize";
+import { getSessionActor } from "@/lib/session";
 
 const awardSchema = z.object({ bidId: z.string() });
 
@@ -15,25 +14,20 @@ const awardSchema = z.object({ bidId: z.string() });
 // Escrow only ever releases through /api/escrow/[id]/release as milestones
 // complete — no single actor can unilaterally move funds (spec section 09).
 //
-// All four writes (RFQ status, winning bid, rejected bids, escrow + embedded
-// milestones, shipment) happen inside one replica-set transaction so a
-// mid-operation failure can never leave the RFQ "AWARDED" without funded
-// escrow, or vice versa.
+// All writes happen inside one Postgres transaction so a mid-operation
+// failure can never leave the RFQ "AWARDED" without funded escrow, or vice
+// versa — mirrors the Phase 1 Mongoose replica-set transaction exactly.
 export const POST = withApiHandler<{ id: string }>(async (request, { params }) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const actor = await getSessionActor();
+  if (!actor) {
     throw new AppError(401, "Sign in required.");
   }
 
-  if (!mongoose.isValidObjectId(params.id)) {
-    throw new AppError(404, "RFQ not found.");
-  }
-
-  const rfq = await Rfq.findById(params.id);
+  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, params.id) });
   if (!rfq) {
     throw new AppError(404, "RFQ not found.");
   }
-  if (rfq.importerId.toString() !== session.user.id) {
+  if (rfq.organizationId !== actor.organization.id) {
     throw new AppError(403, "Only the RFQ owner can award a bid.");
   }
   if (rfq.status !== "OPEN") {
@@ -43,80 +37,78 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
   const body = await request.json();
   const { bidId } = awardSchema.parse(body);
 
-  if (!mongoose.isValidObjectId(bidId)) {
-    throw new AppError(404, "Bid not found on this RFQ.");
-  }
-  const winningBid = await Bid.findOne({ _id: bidId, rfqId: rfq._id });
+  const winningBid = await serviceDb.query.bids.findFirst({
+    where: and(eq(bids.id, bidId), eq(bids.rfqId, rfq.id)),
+  });
   if (!winningBid) {
     throw new AppError(404, "Bid not found on this RFQ.");
   }
 
-  const exporter = await User.findById(winningBid.exporterId).orFail();
-  const escrowAmount = Math.round(winningBid.pricePerUnit * rfq.volume * 100) / 100;
+  const exporter = await serviceDb.query.organizations.findFirst({
+    where: eq(organizations.id, winningBid.organizationId),
+  });
+  if (!exporter) throw new AppError(404, "Exporter organization not found.");
+
+  const escrowAmount = Math.round(Number(winningBid.pricePerUnit) * Number(rfq.volume) * 100) / 100;
   const route = recommendRoute({
-    volume: rfq.volume,
+    volume: Number(rfq.volume),
     originLocation: rfq.originCountry,
     destinationLocation: rfq.destinationCountry,
   });
 
-  const session_ = await mongoose.startSession();
-  let escrow, shipment;
-  try {
-    await session_.withTransaction(async () => {
-      rfq.status = "AWARDED";
-      rfq.awardedBidId = winningBid._id;
-      await rfq.save({ session: session_ });
+  const { escrow, shipment } = await serviceDb.transaction(async (tx) => {
+    await tx.update(rfqs).set({ status: "AWARDED", awardedBidId: winningBid.id }).where(eq(rfqs.id, rfq.id));
 
-      winningBid.status = "ACCEPTED";
-      await winningBid.save({ session: session_ });
+    await tx.update(bids).set({ status: "ACCEPTED" }).where(eq(bids.id, winningBid.id));
+    await tx
+      .update(bids)
+      .set({ status: "REJECTED" })
+      .where(and(eq(bids.rfqId, rfq.id), ne(bids.id, winningBid.id)));
 
-      await Bid.updateMany(
-        { rfqId: rfq._id, _id: { $ne: winningBid._id } },
-        { $set: { status: "REJECTED" } },
-        { session: session_ }
-      );
+    const [createdEscrow] = await tx
+      .insert(escrowAccounts)
+      .values({
+        rfqId: rfq.id,
+        amount: escrowAmount.toString(),
+        currency: rfq.currency,
+        status: "FUNDED",
+        fundedAt: new Date(),
+      })
+      .returning();
 
-      const [createdEscrow] = await Escrow.create(
-        [
-          {
-            rfqId: rfq._id,
-            amount: escrowAmount,
-            currency: rfq.currency,
-            status: "FUNDED",
-            fundedAt: new Date(),
-            milestones: ESCROW_MILESTONES.map((name, index) => ({
-              name,
-              sequence: index,
-              status: index === 0 ? "COMPLETE" : "PENDING",
-              completedAt: index === 0 ? new Date() : null,
-            })),
-          },
-        ],
-        { session: session_ }
-      );
-      escrow = createdEscrow;
+    await tx.insert(escrowMilestones).values(
+      ESCROW_MILESTONES.map((name, index) => ({
+        escrowAccountId: createdEscrow.id,
+        name,
+        sequence: index,
+        status: index === 0 ? ("COMPLETE" as const) : ("PENDING" as const),
+        completedAt: index === 0 ? new Date() : null,
+      }))
+    );
 
-      const [createdShipment] = await Shipment.create(
-        [
-          {
-            rfqId: rfq._id,
-            exporterId: winningBid.exporterId,
-            importerId: rfq.importerId,
-            mode: route.mode,
-            originLocation: rfq.originCountry,
-            destinationLocation: rfq.destinationCountry,
-            estimatedCost: route.estimatedCost,
-            stsScoreAtTimeOfDeal: exporter.stsScore,
-            aiRouteRecommendation: route.recommendation,
-          },
-        ],
-        { session: session_ }
-      );
-      shipment = createdShipment;
-    });
-  } finally {
-    await session_.endSession();
-  }
+    const [createdShipment] = await tx
+      .insert(shipments)
+      .values({
+        rfqId: rfq.id,
+        exporterOrganizationId: winningBid.organizationId,
+        importerOrganizationId: rfq.organizationId,
+        mode: route.mode,
+        originLocation: rfq.originCountry,
+        destinationLocation: rfq.destinationCountry,
+        estimatedCost: route.estimatedCost.toString(),
+        stsScoreAtTimeOfDeal: exporter.stsScore.toString(),
+        aiRouteRecommendation: route.recommendation,
+      })
+      .returning();
 
-  return NextResponse.json({ escrow: serialize(escrow), shipment: serialize(shipment) }, { status: 201 });
+    return { escrow: createdEscrow, shipment: createdShipment };
+  });
+
+  return NextResponse.json(
+    {
+      escrow: { ...escrow, amount: Number(escrow.amount) },
+      shipment: { ...shipment, estimatedCost: Number(shipment.estimatedCost) },
+    },
+    { status: 201 }
+  );
 });

@@ -1,7 +1,9 @@
 # SeaSharp Technical Architecture
 
-> Status: v2.0 target architecture. See [docs/README.md](./README.md) for how
-> this compares to what's actually shipped today.
+> Status: the database, ORM, RLS, multi-tenancy, and identity/RBAC sections
+> below are live. Next.js 15, Supabase Edge Functions, and the newer
+> integrations (Stripe, Resend, Twilio, PostHog) are still target-only. See
+> [docs/README.md](./README.md) for the full comparison.
 
 ## Tech stack
 

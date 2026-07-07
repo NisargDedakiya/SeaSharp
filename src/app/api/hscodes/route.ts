@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { withApiHandler } from "@/lib/api-handler";
-import { HsCode } from "@/models";
+import { serviceDb } from "@/db/client";
 
 export const GET = withApiHandler(async () => {
-  const hsCodes = await HsCode.find().sort({ _id: 1 });
-  return NextResponse.json(
-    hsCodes.map((hs) => ({ code: hs._id, description: hs.description, category: hs.category }))
-  );
+  const codes = await serviceDb.query.hsCodes.findMany({ orderBy: (h, { asc }) => [asc(h.code)] });
+  return NextResponse.json(codes);
 });

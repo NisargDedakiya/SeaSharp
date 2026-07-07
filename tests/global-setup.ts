@@ -1,45 +1,65 @@
-import type { MongoMemoryReplSet } from "mongodb-memory-server";
+import postgres from "postgres";
+import { readdirSync, readFileSync } from "fs";
+import { join } from "path";
 
-// If MONGODB_URI is already set (e.g. pointing at a real MongoDB, or at a
-// wire-protocol-compatible dev server), reuse it. Otherwise spin up an
-// ephemeral single-node replica set via mongodb-memory-server — this is the
-// path CI and most local dev machines take, since it needs to download a
-// real mongod binary the first time. `setup` and `teardown` run in the same
-// process, so a module-scoped variable is enough to hand the instance off.
-let replSet: MongoMemoryReplSet | undefined;
-
+// Redirects DATABASE_URL/APP_DATABASE_URL to a dedicated `_test` database on
+// the same Postgres server (created fresh each run), then applies the
+// Drizzle table migrations and the hand-written RLS/roles bootstrap — the
+// same two steps `npm run db:migrate && npm run db:bootstrap` do for local
+// dev, just against a disposable database so the suite's aggressive
+// truncation (see tests/db.ts) never touches real data. CI provides
+// DATABASE_URL/APP_DATABASE_URL pointing at its Postgres service container;
+// local runs pick up .env if present.
 export async function setup() {
-  // Pick up a local .env (e.g. MONGODB_URI pointing at a dev-time FerretDB
-  // instance) if present, without requiring it — CI has no .env file and
-  // falls through to mongodb-memory-server below.
   try {
     process.loadEnvFile(".env");
   } catch {
-    // no .env file — fine, CI provides MONGODB_URI itself or we spin one up
+    // no .env file — fine, CI sets these env vars directly
   }
 
-  if (process.env.MONGODB_URI) {
-    // Redirect to a dedicated test database so the suite's aggressive
-    // collection-clearing (see tests/db.ts) never touches dev data sitting
-    // in the same MongoDB/FerretDB instance.
-    const url = new URL(process.env.MONGODB_URI);
-    url.pathname = "/seasharp-test";
-    process.env.MONGODB_URI = url.toString();
-    return;
-  }
+  const baseUrl = new URL(process.env.DATABASE_URL!);
+  const testDbName = `${baseUrl.pathname.slice(1)}_test`;
 
-  const { MongoMemoryReplSet } = await import("mongodb-memory-server");
-  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
-  // getUri(dbName) inserts the database name as a path segment ahead of the
-  // `?replicaSet=...` query string. Naively concatenating a db name onto the
-  // end of getUri()'s return value instead corrupts the replicaSet query
-  // param itself (e.g. "replicaSet=testset" + "seasharp-test" collapses into
-  // the single bogus set name "testsetseasharp-test"), which is why this
-  // used to hang for the full server-selection timeout instead of failing
-  // fast.
-  process.env.MONGODB_URI = replSet.getUri("seasharp-test");
+  const adminUrl = new URL(baseUrl);
+  adminUrl.pathname = "/postgres";
+  const admin = postgres(adminUrl.toString(), { max: 1 });
+  await admin.unsafe(`DROP DATABASE IF EXISTS "${testDbName}"`);
+  await admin.unsafe(`CREATE DATABASE "${testDbName}"`);
+  await admin.end();
+
+  const testUrl = new URL(baseUrl);
+  testUrl.pathname = `/${testDbName}`;
+  process.env.DATABASE_URL = testUrl.toString();
+
+  const appBaseUrl = new URL(process.env.APP_DATABASE_URL!);
+  const appTestUrl = new URL(appBaseUrl);
+  appTestUrl.pathname = `/${testDbName}`;
+  process.env.APP_DATABASE_URL = appTestUrl.toString();
+
+  const migrationsDir = join(__dirname, "..", "drizzle");
+  const migrationFiles = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+
+  const sql = postgres(testUrl.toString(), { max: 1 });
+  try {
+    for (const file of migrationFiles) {
+      await sql.unsafe(readFileSync(join(migrationsDir, file), "utf8"));
+    }
+
+    const manualDir = join(migrationsDir, "manual");
+    const manualFiles = readdirSync(manualDir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    for (const file of manualFiles) {
+      await sql.unsafe(readFileSync(join(manualDir, file), "utf8"));
+    }
+  } finally {
+    await sql.end();
+  }
 }
 
 export async function teardown() {
-  if (replSet) await replSet.stop();
+  // The test database is dropped at the start of the next run, not here —
+  // leaving it around after a failure makes it easier to inspect.
 }

@@ -1,33 +1,50 @@
 services:
-  mongo:
-    image: mongo:7
-    command: ["--replSet", "rs0", "--bind_ip_all"]
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: seasharp
     ports:
-      - "27017:27017"
+      - "5432:5432"
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      # First call fails (not yet initiated) and initiates the replica set;
-      # every call after that succeeds once initiation completes. This is
-      # how the app gets multi-document transactions (used for RFQ award and
-      # escrow release) without a separate one-shot init container.
-      test: >
-        mongosh --port 27017 --quiet --eval
-        "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }"
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
-      timeout: 10s
+      timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 5s
+
+  migrate:
+    build:
+      context: .
+      # The final "runner" stage only ships the minimal Next.js standalone
+      # output — no devDependencies, no drizzle/ or scripts/ folders. The
+      # "builder" stage has the full source tree and node_modules needed to
+      # run drizzle-kit and the bootstrap script.
+      target: builder
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/seasharp
+      APP_DATABASE_URL: postgres://app_user:app_user_dev_password@postgres:5432/seasharp
+    # One-shot job: applies Drizzle table migrations, then the hand-written
+    # RLS/roles bootstrap (see docs/04-database-design.md#row-level-security).
+    # `app` waits for this to exit 0 before starting.
+    command: sh -c "npm run db:migrate && npm run db:bootstrap"
 
   app:
     build: .
     depends_on:
-      mongo:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
-      MONGODB_URI: mongodb://mongo:27017/seasharp?replicaSet=rs0
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?set a long random secret in .env}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/seasharp
+      APP_DATABASE_URL: postgres://app_user:app_user_dev_password@postgres:5432/seasharp
+      AUTH_JWT_SECRET: ${AUTH_JWT_SECRET:?set a long random secret in .env}
+      APP_URL: ${APP_URL:-http://localhost:3000}
       NODE_ENV: production
       SENTRY_DSN: ${SENTRY_DSN:-}
       LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -41,4 +58,4 @@ services:
       start_period: 15s
 
 volumes:
-  mongo_data:
+  postgres_data:

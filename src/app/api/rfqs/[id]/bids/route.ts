@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import mongoose from "mongoose";
-import { authOptions } from "@/lib/auth";
+import { eq, and } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { Rfq, Bid } from "@/models";
-import { serialize } from "@/lib/serialize";
+import { serviceDb } from "@/db/client";
+import { rfqs, bids } from "@/db/schema";
+import { getSessionActor } from "@/lib/session";
 
 const bidSchema = z.object({
   pricePerUnit: z.coerce.number().positive(),
@@ -20,16 +19,12 @@ function suggestBidPrice(targetPricePerUnit: number) {
 }
 
 export const POST = withApiHandler<{ id: string }>(async (request, { params }) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "EXPORTER") {
+  const actor = await getSessionActor();
+  if (!actor || actor.organization.type !== "EXPORTER") {
     throw new AppError(403, "Only exporters can submit bids.");
   }
 
-  if (!mongoose.isValidObjectId(params.id)) {
-    throw new AppError(404, "RFQ not found.");
-  }
-
-  const rfq = await Rfq.findById(params.id);
+  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, params.id) });
   if (!rfq) {
     throw new AppError(404, "RFQ not found.");
   }
@@ -43,13 +38,37 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
   const body = await request.json();
   const { pricePerUnit, message } = bidSchema.parse(body);
 
-  const aiSuggestedPrice = suggestBidPrice(rfq.targetPricePerUnit);
+  const aiSuggestedPrice = suggestBidPrice(Number(rfq.targetPricePerUnit));
 
-  const bid = await Bid.findOneAndUpdate(
-    { rfqId: rfq._id, exporterId: session.user.id },
-    { $set: { pricePerUnit, message }, $setOnInsert: { aiSuggestedPrice } },
-    { upsert: true, returnDocument: "after" }
+  const existing = await serviceDb.query.bids.findFirst({
+    where: and(eq(bids.rfqId, rfq.id), eq(bids.organizationId, actor.organization.id)),
+  });
+
+  const [bid] = existing
+    ? await serviceDb
+        .update(bids)
+        .set({ pricePerUnit: pricePerUnit.toString(), message })
+        .where(eq(bids.id, existing.id))
+        .returning()
+    : await serviceDb
+        .insert(bids)
+        .values({
+          rfqId: rfq.id,
+          organizationId: actor.organization.id,
+          pricePerUnit: pricePerUnit.toString(),
+          message,
+          aiSuggestedPrice: aiSuggestedPrice.toString(),
+        })
+        .returning();
+
+  return NextResponse.json(
+    {
+      id: bid.id,
+      pricePerUnit: Number(bid.pricePerUnit),
+      message: bid.message,
+      aiSuggestedPrice: bid.aiSuggestedPrice ? Number(bid.aiSuggestedPrice) : null,
+      status: bid.status,
+    },
+    { status: 201 }
   );
-
-  return NextResponse.json(serialize(bid), { status: 201 });
 });

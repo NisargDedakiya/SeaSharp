@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
-import { dbConnect } from "@/lib/mongoose";
 import { logger } from "@/lib/logger";
 import { clientIpFromRequest, rateLimit } from "@/lib/rate-limit";
 
@@ -58,7 +57,6 @@ export function withApiHandler<Params = Record<string, string>>(
         }
       }
 
-      await dbConnect();
       const response = await handler(request, context);
       log.info({ status: response.status, durationMs: Date.now() - start }, "request completed");
       return response;

@@ -1,8 +1,12 @@
 # SeaSharp Database Design
 
-> Status: v2.0 target architecture. See [docs/README.md](./README.md) for how
-> this compares to what's actually shipped today (Phase 1 runs on MongoDB —
-> see `src/models/` in the repo root for the current schema).
+> Status: this schema is live — see `src/db/schema/*.ts` for the actual
+> Drizzle definitions and `drizzle/manual/01_rls_and_roles.sql` for the RLS
+> policies. A few tables differ slightly from this doc's original sketch for
+> Phase 1 feature-parity reasons (e.g. `tariffs.additional_fee_percent`,
+> `shipments`' richer column set) — the code is the source of truth where
+> the two disagree. See [docs/README.md](./README.md) for the full
+> comparison against the target.
 
 Database: **Supabase PostgreSQL**. ORM: **Drizzle** (`src/db/schema/*`, one
 file per domain below). Every table has `id uuid primary key default

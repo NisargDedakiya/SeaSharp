@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import type { SessionUser } from "@/lib/session";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -14,8 +15,14 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
-export function Navbar() {
-  const { data: session, status } = useSession();
+export function Navbar({ user }: { user: SessionUser | null }) {
+  const router = useRouter();
+
+  async function handleSignOut() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+    router.refresh();
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-md">
@@ -37,15 +44,15 @@ export function Navbar() {
         <div className="hidden items-center gap-8 text-sm font-medium md:flex">
           <NavLink href="/compliance-checker">Compliance Checker</NavLink>
           <NavLink href="/marketplace">RFQ Marketplace</NavLink>
-          {session && <NavLink href="/dashboard">Dashboard</NavLink>}
+          {user && <NavLink href="/dashboard">Dashboard</NavLink>}
         </div>
 
         <div className="flex items-center gap-3">
-          {status === "loading" ? null : session ? (
+          {user ? (
             <>
-              <span className="hidden text-sm text-slate-400 sm:inline">{session.user?.name}</span>
+              <span className="hidden text-sm text-slate-400 sm:inline">{user.fullName}</span>
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={handleSignOut}
                 className="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-200 transition-colors hover:border-sky-500/60 hover:text-sky-300"
               >
                 Sign out

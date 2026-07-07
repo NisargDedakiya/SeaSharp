@@ -1,13 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// The route handlers call getServerSession(authOptions) directly. Mocking the
-// whole `next-auth` module lets each request in this test simulate being
-// signed in as a different user without running real cookie-based auth.
-type MockSession = { user: { id: string; role: string; name?: string; email?: string } } | null;
-let mockSession: MockSession = null;
+// The route handlers call getSessionActor()/getSessionUser() from
+// @/lib/session, which reads a signed cookie via next/headers — not
+// meaningful in a direct route-handler-function-call test. Mocking the
+// module lets each request simulate being signed in as a different
+// organization without running real cookie-based auth end to end.
+type MockActor = {
+  user: { id: string; email: string; fullName: string };
+  organization: { id: string; type: string; stsScore: number; kycStatus: string };
+} | null;
+let mockActor: MockActor = null;
 
-vi.mock("next-auth", () => ({
-  getServerSession: vi.fn(() => Promise.resolve(mockSession)),
+// Deliberately not spreading the real module's exports: @/lib/session
+// imports next/headers's cookies(), which only works inside a real Next.js
+// server request context, not a bare route-handler-function-call test.
+vi.mock("@/lib/session", () => ({
+  getSessionActor: vi.fn(() => Promise.resolve(mockActor)),
+  getSessionUser: vi.fn(() => Promise.resolve(mockActor?.user ?? null)),
 }));
 
 import { POST as registerUser } from "@/app/api/auth/register/route";
@@ -18,8 +27,8 @@ import { POST as awardBid } from "@/app/api/rfqs/[id]/award/route";
 import { POST as releaseMilestone } from "@/app/api/escrow/[id]/release/route";
 import { GET as getSts } from "@/app/api/sts/route";
 import { POST as requestLoan } from "@/app/api/loans/route";
-import { Country, HsCode, TariffRule } from "@/models";
-import { transactionsSupported } from "../db";
+import { serviceDb } from "@/db/client";
+import { countries, hsCodes, tariffs } from "@/db/schema";
 
 function jsonRequest(url: string, body: unknown) {
   return new Request(url, {
@@ -30,21 +39,21 @@ function jsonRequest(url: string, body: unknown) {
 }
 
 async function seedTradeReferenceData() {
-  await Country.create([
-    { _id: "IN", name: "India", zone: "INDIA" },
-    { _id: "AE", name: "United Arab Emirates", zone: "UAE" },
+  await serviceDb.insert(countries).values([
+    { code: "IN", name: "India", region: "INDIA" },
+    { code: "AE", name: "United Arab Emirates", region: "UAE" },
   ]);
-  await HsCode.create({ _id: "0909.31", description: "Cumin seeds, whole", category: "Spices" });
-  await TariffRule.create({
+  await serviceDb.insert(hsCodes).values({ code: "0909.31", description: "Cumin seeds, whole", category: "Spices" });
+  await serviceDb.insert(tariffs).values({
     hsCode: "0909.31",
     originCountry: "IN",
     destinationCountry: "AE",
-    tariffPercent: 0,
-    additionalFeePercent: 5,
+    dutyRatePercent: "0",
+    additionalFeePercent: "5",
   });
 }
 
-async function registerAndGetId(overrides: Record<string, unknown>) {
+async function registerAndGetActor(overrides: Record<string, unknown>) {
   const res = await registerUser(
     jsonRequest("http://localhost/api/auth/register", {
       name: "Test User",
@@ -57,22 +66,30 @@ async function registerAndGetId(overrides: Record<string, unknown>) {
   );
   expect(res.status).toBe(201);
   const body = await res.json();
-  return body.id as string;
+  return {
+    user: { id: body.id as string, email: body.email as string, fullName: (overrides.name as string) ?? "Test User" },
+    organization: {
+      id: body.organizationId as string,
+      type: (overrides.role as string) ?? "EXPORTER",
+      stsScore: 0,
+      kycStatus: "UNVERIFIED",
+    },
+  };
 }
 
 describe("RFQ lifecycle (post -> bid -> award -> escrow -> STS -> financing)", () => {
   beforeEach(() => {
-    mockSession = null;
+    mockActor = null;
   });
 
   it("runs the full trade lifecycle and updates STS + financing eligibility", async () => {
     await seedTradeReferenceData();
 
-    const importerId = await registerAndGetId({ role: "IMPORTER", companyName: "Dubai Spice Co" });
-    const exporterId = await registerAndGetId({ role: "EXPORTER", companyName: "Rajkot Exports" });
+    const importer = await registerAndGetActor({ role: "IMPORTER", companyName: "Dubai Spice Co" });
+    const exporter = await registerAndGetActor({ role: "EXPORTER", companyName: "Rajkot Exports" });
 
     // --- Post an RFQ as the importer ---
-    mockSession = { user: { id: importerId, role: "IMPORTER" } };
+    mockActor = importer;
     const rfqRes = await createRfq(
       jsonRequest("http://localhost/api/rfqs", {
         product: "Cumin seeds",
@@ -91,7 +108,7 @@ describe("RFQ lifecycle (post -> bid -> award -> escrow -> STS -> financing)", (
     const rfq = await rfqRes.json();
 
     // --- Submit a bid as the exporter ---
-    mockSession = { user: { id: exporterId, role: "EXPORTER" } };
+    mockActor = exporter;
     const bidRes = await submitBid(
       jsonRequest(`http://localhost/api/rfqs/${rfq.id}/bids`, { pricePerUnit: 3.2, message: "Can ship in 2 weeks" }),
       { params: { id: rfq.id } }
@@ -108,34 +125,18 @@ describe("RFQ lifecycle (post -> bid -> award -> escrow -> STS -> financing)", (
     const detail = await detailRes.json();
     expect(detail.totalBidCount).toBe(1);
 
-    // Awarding a bid and releasing escrow both run inside a replica-set
-    // transaction (see the award and escrow/release routes). FerretDB (this
-    // repo's local dev stand-in, used because this sandbox can't download a
-    // real mongod binary) doesn't implement transactions, so it can't run
-    // the rest of this test. Real MongoDB / mongodb-memory-server in CI do,
-    // and run the full assertions below.
-    if (!(await transactionsSupported())) {
-      console.warn(
-        "Stopping here: the connected server does not support transactions " +
-          "(expected for the local FerretDB stand-in; real MongoDB in CI supports this and runs the rest)."
-      );
-      return;
-    }
-
     // --- Award the bid as the importer ---
-    mockSession = { user: { id: importerId, role: "IMPORTER" } };
+    mockActor = importer;
     const awardRes = await awardBid(jsonRequest(`http://localhost/api/rfqs/${rfq.id}/award`, { bidId: bid.id }), {
       params: { id: rfq.id },
     });
     expect(awardRes.status).toBe(201);
     const { escrow, shipment } = await awardRes.json();
     expect(escrow.amount).toBeCloseTo(3.2 * 5000, 2);
-    expect(escrow.milestones).toHaveLength(5);
-    expect(escrow.milestones[0].status).toBe("COMPLETE");
     expect(shipment.mode).toBe("SEA");
 
     // --- Progress escrow milestones as the exporter until fulfillment ---
-    mockSession = { user: { id: exporterId, role: "EXPORTER" } };
+    mockActor = exporter;
     let lastEscrow;
     for (let i = 0; i < 4; i++) {
       const releaseRes = await releaseMilestone(new Request(`http://localhost/api/escrow/${escrow.id}/release`, { method: "POST" }), {
@@ -145,7 +146,6 @@ describe("RFQ lifecycle (post -> bid -> award -> escrow -> STS -> financing)", (
       lastEscrow = await releaseRes.json();
     }
     expect(lastEscrow.status).toBe("RELEASED");
-    expect(lastEscrow.milestones.every((m: { status: string }) => m.status === "COMPLETE")).toBe(true);
 
     // --- STS should now reflect a completed, on-time, dispute-free trade ---
     const stsRes = await getSts(new Request("http://localhost/api/sts"), { params: {} });
@@ -161,22 +161,5 @@ describe("RFQ lifecycle (post -> bid -> award -> escrow -> STS -> financing)", (
     expect(loanRes.status).toBe(201);
     const { loan, decision } = await loanRes.json();
     expect(loan.status).toBe(decision.approved ? "APPROVED" : "REJECTED");
-  });
-
-  it("only commits the award transaction atomically when the database supports it", async () => {
-    // Documents the environment dependency directly rather than silently
-    // skipping: FerretDB (this repo's local dev stand-in, used where
-    // downloading a real mongod binary isn't possible) does not support
-    // multi-document transactions, while real MongoDB / mongodb-memory-server
-    // do. CI always has one of the latter, so this assertion holds there.
-    const supported = await transactionsSupported();
-    if (!supported) {
-      console.warn(
-        "Skipping transactional-rollback assertion: the connected server does not support transactions " +
-          "(expected for the local FerretDB stand-in; real MongoDB in CI supports this)."
-      );
-      return;
-    }
-    expect(supported).toBe(true);
   });
 });

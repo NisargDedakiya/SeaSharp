@@ -1,8 +1,8 @@
 // Pure SeaSharp Trust Score (STS) logic — no I/O, no server-only imports.
 // Safe to import from Client Components (e.g. StsBadge). The DB-backed
-// recompute-and-persist function lives in sts-server.ts so that mongoose
-// (which pulls in Node built-ins like `net`/`tls`) never ends up in a
-// client bundle.
+// recompute-and-persist function lives in sts-server.ts so that the
+// Postgres driver (which pulls in Node built-ins like `net`/`tls`) never
+// ends up in a client bundle.
 
 // Composite 0-1000 credit score for exporters. Weights come directly from
 // the product spec (section 07).

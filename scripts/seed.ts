@@ -1,13 +1,16 @@
-import { dbConnect } from "@/lib/mongoose";
-import { Country, HsCode, TariffRule, ComplianceDocument } from "@/models";
-import mongoose from "mongoose";
+import "dotenv/config";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
+import * as schema from "../src/db/schema";
+
+const { countries, hsCodes, tariffs, complianceDocuments } = schema;
 
 const COUNTRIES = [
-  { code: "IN", name: "India", zone: "INDIA" as const },
-  { code: "AE", name: "United Arab Emirates", zone: "UAE" as const },
-  { code: "US", name: "United States", zone: "USA" as const },
-  { code: "DE", name: "Germany", zone: "EU" as const },
-  { code: "CN", name: "China", zone: "CHINA" as const },
+  { code: "IN", name: "India", region: "INDIA" },
+  { code: "AE", name: "United Arab Emirates", region: "UAE" },
+  { code: "US", name: "United States", region: "USA" },
+  { code: "DE", name: "Germany", region: "EU" },
+  { code: "CN", name: "China", region: "CHINA" },
 ];
 
 const HS_CODES = [
@@ -24,34 +27,34 @@ const TARIFF_RULES: Array<{
   hsCode: string;
   originCountry: string;
   destinationCountry: string;
-  tariffPercent: number;
+  dutyRatePercent: number;
   additionalFeePercent: number;
   notes: string;
 }> = [
-  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "AE", tariffPercent: 0, additionalFeePercent: 5, notes: "UAE VAT applies; no customs duty under GCC common tariff for raw spices." },
-  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "US", tariffPercent: 1.5, additionalFeePercent: 0.3464, notes: "HTS duty + Merchandise Processing Fee." },
-  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "DE", tariffPercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate for raw spices from India." },
-  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "CN", tariffPercent: 8, additionalFeePercent: 9, notes: "MFN duty + VAT." },
+  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "AE", dutyRatePercent: 0, additionalFeePercent: 5, notes: "UAE VAT applies; no customs duty under GCC common tariff for raw spices." },
+  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "US", dutyRatePercent: 1.5, additionalFeePercent: 0.3464, notes: "HTS duty + Merchandise Processing Fee." },
+  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "DE", dutyRatePercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate for raw spices from India." },
+  { hsCode: "0909.31", originCountry: "IN", destinationCountry: "CN", dutyRatePercent: 8, additionalFeePercent: 9, notes: "MFN duty + VAT." },
 
-  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "AE", tariffPercent: 0, additionalFeePercent: 5, notes: "GCC common tariff exemption on raw oilseeds; VAT applies." },
-  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "US", tariffPercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free under HTS; MPF still applies." },
-  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "DE", tariffPercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate." },
-  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "CN", tariffPercent: 3, additionalFeePercent: 9, notes: "MFN duty + VAT." },
+  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "AE", dutyRatePercent: 0, additionalFeePercent: 5, notes: "GCC common tariff exemption on raw oilseeds; VAT applies." },
+  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "US", dutyRatePercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free under HTS; MPF still applies." },
+  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "DE", dutyRatePercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate." },
+  { hsCode: "1207.40", originCountry: "IN", destinationCountry: "CN", dutyRatePercent: 3, additionalFeePercent: 9, notes: "MFN duty + VAT." },
 
-  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "AE", tariffPercent: 0, additionalFeePercent: 5, notes: "Raw cotton exempt from customs duty; VAT applies." },
-  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "US", tariffPercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free raw cotton fiber." },
-  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "DE", tariffPercent: 0, additionalFeePercent: 0, notes: "EU common external tariff-free for raw cotton." },
-  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "CN", tariffPercent: 1, additionalFeePercent: 9, notes: "MFN duty + VAT." },
+  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "AE", dutyRatePercent: 0, additionalFeePercent: 5, notes: "Raw cotton exempt from customs duty; VAT applies." },
+  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "US", dutyRatePercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free raw cotton fiber." },
+  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "DE", dutyRatePercent: 0, additionalFeePercent: 0, notes: "EU common external tariff-free for raw cotton." },
+  { hsCode: "5201.00", originCountry: "IN", destinationCountry: "CN", dutyRatePercent: 1, additionalFeePercent: 9, notes: "MFN duty + VAT." },
 
-  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "AE", tariffPercent: 0, additionalFeePercent: 5, notes: "GCC exemption; VAT applies." },
-  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "US", tariffPercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free spice classification." },
-  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "DE", tariffPercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate." },
-  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "CN", tariffPercent: 10, additionalFeePercent: 9, notes: "MFN duty + VAT." },
+  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "AE", dutyRatePercent: 0, additionalFeePercent: 5, notes: "GCC exemption; VAT applies." },
+  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "US", dutyRatePercent: 0, additionalFeePercent: 0.3464, notes: "Duty-free spice classification." },
+  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "DE", dutyRatePercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate." },
+  { hsCode: "0910.30", originCountry: "IN", destinationCountry: "CN", dutyRatePercent: 10, additionalFeePercent: 9, notes: "MFN duty + VAT." },
 
-  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "AE", tariffPercent: 0, additionalFeePercent: 5, notes: "GCC exemption on food grains; VAT applies." },
-  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "US", tariffPercent: 1.4, additionalFeePercent: 0.3464, notes: "HTS duty on milled rice + MPF." },
-  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "DE", tariffPercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate for basmati rice." },
-  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "CN", tariffPercent: 5, additionalFeePercent: 9, notes: "MFN duty + VAT." },
+  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "AE", dutyRatePercent: 0, additionalFeePercent: 5, notes: "GCC exemption on food grains; VAT applies." },
+  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "US", dutyRatePercent: 1.4, additionalFeePercent: 0.3464, notes: "HTS duty on milled rice + MPF." },
+  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "DE", dutyRatePercent: 0, additionalFeePercent: 0, notes: "EU GSP preferential rate for basmati rice." },
+  { hsCode: "1006.30", originCountry: "IN", destinationCountry: "CN", dutyRatePercent: 5, additionalFeePercent: 9, notes: "MFN duty + VAT." },
 ];
 
 const GENERAL_DOCS = [
@@ -81,57 +84,74 @@ const ZONE_SPECIFIC_DOCS: Record<string, Array<{ name: string; description: stri
 };
 
 async function main() {
-  await dbConnect();
+  const sql = postgres(process.env.DATABASE_URL!, { max: 1 });
+  const db = drizzle(sql, { schema });
 
-  for (const country of COUNTRIES) {
-    await Country.findByIdAndUpdate(country.code, { _id: country.code, ...country }, { upsert: true });
-  }
+  try {
+    for (const country of COUNTRIES) {
+      await db
+        .insert(countries)
+        .values(country)
+        .onConflictDoUpdate({ target: countries.code, set: { name: country.name, region: country.region } });
+    }
 
-  for (const hs of HS_CODES) {
-    await HsCode.findByIdAndUpdate(hs.code, { _id: hs.code, ...hs }, { upsert: true });
-  }
+    for (const hs of HS_CODES) {
+      await db
+        .insert(hsCodes)
+        .values(hs)
+        .onConflictDoUpdate({ target: hsCodes.code, set: { description: hs.description, category: hs.category } });
+    }
 
-  for (const rule of TARIFF_RULES) {
-    await TariffRule.findOneAndUpdate(
-      { hsCode: rule.hsCode, originCountry: rule.originCountry, destinationCountry: rule.destinationCountry },
-      rule,
-      { upsert: true }
-    );
-  }
+    for (const rule of TARIFF_RULES) {
+      const { hsCode, originCountry, destinationCountry, dutyRatePercent, additionalFeePercent, notes } = rule;
+      await db
+        .insert(tariffs)
+        .values({
+          hsCode,
+          originCountry,
+          destinationCountry,
+          dutyRatePercent: dutyRatePercent.toString(),
+          additionalFeePercent: additionalFeePercent.toString(),
+          notes,
+        })
+        .onConflictDoUpdate({
+          target: [tariffs.hsCode, tariffs.originCountry, tariffs.destinationCountry],
+          set: { dutyRatePercent: dutyRatePercent.toString(), additionalFeePercent: additionalFeePercent.toString(), notes },
+        });
+    }
 
-  await ComplianceDocument.deleteMany({});
-  for (const doc of GENERAL_DOCS) {
-    await ComplianceDocument.create({
-      destinationCountry: "*",
-      name: doc.name,
-      description: doc.description,
-      required: true,
-    });
-  }
-  for (const [destinationCountry, docs] of Object.entries(ZONE_SPECIFIC_DOCS)) {
-    for (const doc of docs) {
-      await ComplianceDocument.create({
-        destinationCountry,
-        hsCode: doc.hsCode,
+    await db.delete(complianceDocuments);
+    for (const doc of GENERAL_DOCS) {
+      await db.insert(complianceDocuments).values({
+        destinationCountry: "*",
         name: doc.name,
         description: doc.description,
         required: true,
       });
     }
-  }
+    for (const [destinationCountry, docs] of Object.entries(ZONE_SPECIFIC_DOCS)) {
+      for (const doc of docs) {
+        await db.insert(complianceDocuments).values({
+          destinationCountry,
+          hsCode: doc.hsCode,
+          name: doc.name,
+          description: doc.description,
+          required: true,
+        });
+      }
+    }
 
-  console.log("Seed complete:", {
-    countries: COUNTRIES.length,
-    hsCodes: HS_CODES.length,
-    tariffRules: TARIFF_RULES.length,
-  });
+    console.log("Seed complete:", {
+      countries: COUNTRIES.length,
+      hsCodes: HS_CODES.length,
+      tariffRules: TARIFF_RULES.length,
+    });
+  } finally {
+    await sql.end();
+  }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await mongoose.disconnect();
-  });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

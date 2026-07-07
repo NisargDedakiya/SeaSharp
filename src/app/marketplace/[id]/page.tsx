@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
-import mongoose from "mongoose";
-import { dbConnect } from "@/lib/mongoose";
-import { Rfq, Bid, Escrow, Shipment } from "@/models";
-import { getSessionUser } from "@/lib/session";
-import { serialize } from "@/lib/serialize";
+import { eq, asc } from "drizzle-orm";
+import { serviceDb } from "@/db/client";
+import { rfqs, organizations, bids, escrowAccounts, escrowMilestones, shipments } from "@/db/schema";
+import { getSessionActor } from "@/lib/session";
 import { countryName } from "@/lib/countries";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { Reveal } from "@/components/Reveal";
@@ -13,89 +12,65 @@ import { EscrowTracker } from "./EscrowTracker";
 
 export const dynamic = "force-dynamic";
 
-type ImporterSummary = {
-  id: string;
-  name: string;
-  companyName: string | null;
-  country: string | null;
-  kycStatus: string;
-  createdAt: string;
-};
-type ExporterSummary = { id: string; name: string; companyName: string | null; stsScore: number };
-
-type SerializedRfq = {
-  id: string;
-  deadline: Date;
-  status: string;
-  originCountry: string;
-  destinationCountry: string;
-  hsCode: string;
-  product: string;
-  volume: number;
-  unit: string;
-  targetPricePerUnit: number;
-  importerId: ImporterSummary;
-};
-
-type SerializedBid = {
-  id: string;
-  pricePerUnit: number;
-  message: string | null;
-  aiSuggestedPrice: number | null;
-  status: string;
-  exporterId: ExporterSummary;
-};
-
-type SerializedEscrow = {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  milestones: Array<{ id: string; name: string; sequence: number; status: string; completedAt: Date | null }>;
-};
-
-type SerializedShipment = {
-  exporterId: string;
-  mode: string;
-  aiRouteRecommendation: string | null;
-  estimatedCost: number;
-};
-
 export default async function RfqDetailPage({ params }: { params: { id: string } }) {
-  const user = await getSessionUser();
-  await dbConnect();
+  const actor = await getSessionActor();
 
-  if (!mongoose.isValidObjectId(params.id)) notFound();
+  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, params.id) });
+  if (!rfq) notFound();
 
-  const rfqDoc = await Rfq.findById(params.id).populate(
-    "importerId",
-    "name companyName country kycStatus createdAt"
-  );
-  if (!rfqDoc) notFound();
+  const importer = await serviceDb.query.organizations.findFirst({
+    where: eq(organizations.id, rfq.organizationId),
+  });
+  if (!importer) notFound();
 
-  const bidDocs = await Bid.find({ rfqId: rfqDoc._id })
-    .populate("exporterId", "name companyName stsScore")
-    .sort({ createdAt: 1 });
-  const escrowDoc = await Escrow.findOne({ rfqId: rfqDoc._id });
-  const shipmentDoc = await Shipment.findOne({ rfqId: rfqDoc._id });
+  const bidRows = await serviceDb.query.bids.findMany({
+    where: eq(bids.rfqId, rfq.id),
+    orderBy: [asc(bids.createdAt)],
+  });
+  const bidOrgIds = Array.from(new Set(bidRows.map((b) => b.organizationId)));
+  const bidOrgs = bidOrgIds.length
+    ? await serviceDb.query.organizations.findMany({ where: (o, { inArray }) => inArray(o.id, bidOrgIds) })
+    : [];
+  const orgById = new Map(bidOrgs.map((o) => [o.id, o]));
 
-  const { importerId: importer, ...rfq } = serialize(rfqDoc) as SerializedRfq;
-  const bids = (serialize(bidDocs) as SerializedBid[]).map(({ exporterId, ...bidRest }) => ({
-    ...bidRest,
-    exporter: exporterId,
-  }));
-  const escrow = serialize(escrowDoc) as SerializedEscrow | null;
-  const shipment = serialize(shipmentDoc) as SerializedShipment | null;
+  const bidList = bidRows.map((b) => {
+    const org = orgById.get(b.organizationId);
+    return {
+      id: b.id,
+      pricePerUnit: Number(b.pricePerUnit),
+      message: b.message,
+      aiSuggestedPrice: b.aiSuggestedPrice ? Number(b.aiSuggestedPrice) : null,
+      status: b.status,
+      exporter: {
+        id: b.organizationId,
+        name: org?.name ?? "",
+        companyName: org?.name ?? null,
+        stsScore: org?.stsScore ?? 0,
+      },
+    };
+  });
 
-  const isOwner = user?.id === importer.id;
-  const myBid = bids.find((b) => b.exporter.id === user?.id) ?? null;
-  const isParticipantExporter = shipment?.exporterId === user?.id;
+  const escrow = await serviceDb.query.escrowAccounts.findFirst({ where: eq(escrowAccounts.rfqId, rfq.id) });
+  const milestoneRows = escrow
+    ? await serviceDb.query.escrowMilestones.findMany({
+        where: eq(escrowMilestones.escrowAccountId, escrow.id),
+        orderBy: (m, { asc: ascOp }) => [ascOp(m.sequence)],
+      })
+    : [];
+  const shipment = await serviceDb.query.shipments.findFirst({ where: eq(shipments.rfqId, rfq.id) });
+
+  const isOwner = actor?.organization.id === rfq.organizationId;
+  const myBid = bidList.find((b) => b.exporter.id === actor?.organization.id) ?? null;
+  const isParticipantExporter = shipment?.exporterOrganizationId === actor?.organization.id;
 
   const importerVerified = importer.kycStatus === "VERIFIED";
   const memberSince = new Date(importer.createdAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
   });
+
+  const volume = Number(rfq.volume);
+  const targetPricePerUnit = Number(rfq.targetPricePerUnit);
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
@@ -105,7 +80,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
         </p>
         <h1 className="mt-2 text-3xl font-bold text-slate-50">{rfq.product}</h1>
         <p className="mt-2 text-slate-400">
-          {rfq.volume.toLocaleString()} {rfq.unit} · target ${rfq.targetPricePerUnit}/{rfq.unit}
+          {volume.toLocaleString()} {rfq.unit} · target ${targetPricePerUnit}/{rfq.unit}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
@@ -123,9 +98,7 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
           <div>
             <p className="text-xs uppercase tracking-wide text-slate-500">Posted by</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-100">
-                {importer.companyName ?? importer.name}
-              </span>
+              <span className="font-semibold text-slate-100">{importer.name}</span>
               {importerVerified && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-medium text-sky-400">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-3 w-3">
@@ -142,11 +115,11 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
         </div>
       </Reveal>
 
-      {rfq.status === "OPEN" && !isOwner && user?.role === "EXPORTER" && (
+      {rfq.status === "OPEN" && !isOwner && actor?.organization.type === "EXPORTER" && (
         <Reveal className="mt-10">
           <BidPanel
             rfqId={rfq.id}
-            targetPricePerUnit={rfq.targetPricePerUnit}
+            targetPricePerUnit={targetPricePerUnit}
             unit={rfq.unit}
             existingBid={myBid}
           />
@@ -155,21 +128,41 @@ export default async function RfqDetailPage({ params }: { params: { id: string }
 
       {isOwner && (
         <Reveal className="mt-10">
-          <BidList rfqId={rfq.id} bids={bids} rfqStatus={rfq.status} totalBidCount={bids.length} />
+          <BidList rfqId={rfq.id} bids={bidList} rfqStatus={rfq.status} totalBidCount={bidList.length} />
         </Reveal>
       )}
 
       {escrow && (
         <Reveal className="mt-10">
           <EscrowTracker
-            escrow={escrow}
+            escrow={{
+              id: escrow.id,
+              amount: Number(escrow.amount),
+              currency: escrow.currency,
+              status: escrow.status,
+              milestones: milestoneRows.map((m) => ({
+                id: m.id,
+                name: m.name,
+                sequence: m.sequence,
+                status: m.status,
+                completedAt: m.completedAt,
+              })),
+            }}
             canAdvance={isOwner || isParticipantExporter}
-            shipment={shipment}
+            shipment={
+              shipment
+                ? {
+                    mode: shipment.mode,
+                    aiRouteRecommendation: shipment.aiRouteRecommendation,
+                    estimatedCost: Number(shipment.estimatedCost),
+                  }
+                : null
+            }
           />
         </Reveal>
       )}
 
-      {!user && (
+      {!actor && (
         <p className="mt-10 text-sm text-slate-500">
           <a href="/login" className="text-sky-400 hover:underline">
             Sign in

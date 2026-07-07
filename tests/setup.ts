@@ -1,14 +1,6 @@
-import { beforeAll, afterAll, afterEach } from "vitest";
-import { connectTestDb, disconnectTestDb, clearTestDb } from "./db";
-
-beforeAll(async () => {
-  await connectTestDb();
-});
+import { afterEach } from "vitest";
+import { clearTestDb } from "./db";
 
 afterEach(async () => {
   await clearTestDb();
-});
-
-afterAll(async () => {
-  await disconnectTestDb();
 });

@@ -1,46 +1,43 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import mongoose from "mongoose";
-import { authOptions } from "@/lib/auth";
+import { eq, asc } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { Escrow, Rfq, Shipment } from "@/models";
+import { serviceDb } from "@/db/client";
+import { escrowAccounts, escrowMilestones, rfqs, shipments } from "@/db/schema";
 import { recalculateAndSaveSts } from "@/lib/sts-server";
-import { serialize } from "@/lib/serialize";
+import { getSessionActor } from "@/lib/session";
 
 // Advances escrow to the next pending milestone. Funds only move at
 // verified logistics milestones (spec section 05, Pillar B) — this endpoint
 // is the only path that can progress an escrow, and it is gated to the two
 // counterparties on the deal. Milestone update, shipment stage transitions,
-// and the terminal RFQ/escrow status flip all happen inside one replica-set
-// transaction.
+// and the terminal RFQ/escrow status flip all happen inside one transaction.
 export const POST = withApiHandler<{ id: string }>(async (_request, { params }) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const actor = await getSessionActor();
+  if (!actor) {
     throw new AppError(401, "Sign in required.");
   }
 
-  if (!mongoose.isValidObjectId(params.id)) {
-    throw new AppError(404, "Escrow not found.");
-  }
-
-  const escrow = await Escrow.findById(params.id);
+  const escrow = await serviceDb.query.escrowAccounts.findFirst({ where: eq(escrowAccounts.id, params.id) });
   if (!escrow) {
     throw new AppError(404, "Escrow not found.");
   }
 
-  const rfq = await Rfq.findById(escrow.rfqId).orFail();
-  const shipment = await Shipment.findOne({ rfqId: rfq._id });
+  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, escrow.rfqId) });
+  if (!rfq) throw new AppError(404, "RFQ not found.");
+  const shipment = await serviceDb.query.shipments.findFirst({ where: eq(shipments.rfqId, rfq.id) });
 
   const isParticipant =
-    rfq.importerId.toString() === session.user.id ||
-    shipment?.exporterId.toString() === session.user.id;
+    rfq.organizationId === actor.organization.id ||
+    shipment?.exporterOrganizationId === actor.organization.id;
   if (!isParticipant) {
     throw new AppError(403, "Not a participant on this trade.");
   }
 
-  type Milestone = (typeof escrow.milestones)[number];
-  const milestones = escrow.milestones.slice().sort((a: Milestone, b: Milestone) => a.sequence - b.sequence);
-  const nextMilestone = milestones.find((m: Milestone) => m.status === "PENDING");
+  const milestones = await serviceDb.query.escrowMilestones.findMany({
+    where: eq(escrowMilestones.escrowAccountId, escrow.id),
+    orderBy: [asc(escrowMilestones.sequence)],
+  });
+  const nextMilestone = milestones.find((m) => m.status === "PENDING");
   if (!nextMilestone) {
     throw new AppError(409, "All milestones are already complete.");
   }
@@ -49,50 +46,52 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
   const isDeliveryMilestone = nextMilestone.sequence === milestones.length - 2;
   const isCustomsMilestone = nextMilestone.sequence === milestones.length - 3;
 
-  const mongooseSession = await mongoose.startSession();
-  try {
-    await mongooseSession.withTransaction(async () => {
-      const target = escrow.milestones.id(nextMilestone._id);
-      if (!target) throw new AppError(404, "Milestone not found.");
-      target.status = "COMPLETE";
-      target.completedAt = new Date();
+  await serviceDb.transaction(async (tx) => {
+    await tx
+      .update(escrowMilestones)
+      .set({ status: "COMPLETE", completedAt: new Date() })
+      .where(eq(escrowMilestones.id, nextMilestone.id));
 
-      if (isFinalMilestone) {
-        escrow.status = "RELEASED";
-        escrow.releasedAt = new Date();
-      } else {
-        escrow.status = "PARTIALLY_RELEASED";
-      }
-      await escrow.save({ session: mongooseSession });
+    await tx
+      .update(escrowAccounts)
+      .set(
+        isFinalMilestone
+          ? { status: "RELEASED", releasedAt: new Date() }
+          : { status: "PARTIALLY_RELEASED" }
+      )
+      .where(eq(escrowAccounts.id, escrow.id));
 
-      if (shipment && isCustomsMilestone) {
-        shipment.transportStage = "CUSTOMS_CLEARANCE";
-        shipment.customsClearedAt = new Date();
-        await shipment.save({ session: mongooseSession });
-      }
+    if (shipment && isCustomsMilestone) {
+      await tx
+        .update(shipments)
+        .set({ transportStage: "CUSTOMS_CLEARANCE", customsClearedAt: new Date() })
+        .where(eq(shipments.id, shipment.id));
+    }
 
-      if (shipment && isDeliveryMilestone) {
-        shipment.transportStage = "DELIVERY";
-        shipment.deliveredAt = new Date();
-        await shipment.save({ session: mongooseSession });
-      }
+    if (shipment && isDeliveryMilestone) {
+      await tx
+        .update(shipments)
+        .set({ transportStage: "DELIVERY", deliveredAt: new Date() })
+        .where(eq(shipments.id, shipment.id));
+    }
 
-      if (shipment && isFinalMilestone) {
-        shipment.transportStage = "COMPLETE";
-        shipment.status = "COMPLETE";
-        await shipment.save({ session: mongooseSession });
+    if (shipment && isFinalMilestone) {
+      await tx
+        .update(shipments)
+        .set({ transportStage: "COMPLETE", status: "COMPLETE" })
+        .where(eq(shipments.id, shipment.id));
 
-        rfq.status = "FULFILLED";
-        await rfq.save({ session: mongooseSession });
-      }
-    });
-  } finally {
-    await mongooseSession.endSession();
-  }
+      await tx.update(rfqs).set({ status: "FULFILLED" }).where(eq(rfqs.id, rfq.id));
+    }
+  });
 
   if (isFinalMilestone && shipment) {
-    await recalculateAndSaveSts(shipment.exporterId.toString());
+    await recalculateAndSaveSts(shipment.exporterOrganizationId);
   }
 
-  return NextResponse.json(serialize(escrow));
+  const updatedEscrow = await serviceDb.query.escrowAccounts.findFirst({
+    where: eq(escrowAccounts.id, escrow.id),
+  });
+
+  return NextResponse.json({ ...updatedEscrow, amount: Number(updatedEscrow!.amount) });
 });

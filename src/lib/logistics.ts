@@ -1,6 +1,6 @@
-import type { FREIGHT_MODES } from "@/models/Shipment";
+import type { freightModeEnum } from "@/db/schema";
 
-type FreightMode = (typeof FREIGHT_MODES)[number];
+type FreightMode = (typeof freightModeEnum.enumValues)[number];
 
 const PER_UNIT_RATE: Record<FreightMode, number> = {
   SEA: 0.08,

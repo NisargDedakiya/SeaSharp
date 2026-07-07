@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -34,15 +33,8 @@ export default function RegisterPage() {
         return;
       }
 
-      const signInResult = await signIn("credentials", {
-        email: form.email,
-        password: form.password,
-        redirect: false,
-      });
-      if (signInResult?.error) {
-        router.push("/login");
-        return;
-      }
+      // /api/auth/register sets the session cookie directly on success —
+      // no separate sign-in round trip needed.
       router.push("/dashboard");
       router.refresh();
     } catch {

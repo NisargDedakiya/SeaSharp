@@ -1,18 +1,20 @@
 import Link from "next/link";
-import { dbConnect } from "@/lib/mongoose";
 import { listOpenRfqs } from "@/lib/rfqs";
-import { getSessionUser } from "@/lib/session";
-import { serialize } from "@/lib/serialize";
+import { getSessionActor } from "@/lib/session";
 import { Reveal } from "@/components/Reveal";
 import { TrustStrip } from "@/components/TrustStrip";
-import { MarketplaceBrowser, type RfqListItem } from "./MarketplaceBrowser";
+import { MarketplaceBrowser } from "./MarketplaceBrowser";
 
 export const dynamic = "force-dynamic";
 
 export default async function MarketplacePage() {
-  const user = await getSessionUser();
-  await dbConnect();
-  const rfqs = serialize(await listOpenRfqs()) as RfqListItem[];
+  const actor = await getSessionActor();
+  const openRfqs = await listOpenRfqs();
+  const rfqs = openRfqs.map((r) => ({
+    ...r,
+    deadline: r.deadline.toISOString(),
+    createdAt: r.createdAt.toISOString(),
+  }));
   const verifiedCount = rfqs.filter((r) => r.importer.kycStatus === "VERIFIED").length;
   const totalBids = rfqs.reduce((sum, r) => sum + r.bidCount, 0);
 
@@ -30,7 +32,7 @@ export default async function MarketplacePage() {
               placed · {verifiedCount} from KYC-verified importers
             </p>
           </div>
-          {user?.role === "IMPORTER" && (
+          {actor?.organization.type === "IMPORTER" && (
             <Link
               href="/marketplace/new"
               className="rounded-md bg-gradient-to-r from-sky-500 to-sky-400 px-5 py-2.5 text-sm font-semibold text-slate-950 shadow-[0_0_20px_-6px_rgba(56,189,248,0.6)] transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"

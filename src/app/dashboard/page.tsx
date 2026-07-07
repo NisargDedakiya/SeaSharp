@@ -1,55 +1,74 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { dbConnect } from "@/lib/mongoose";
-import { User, Bid, Rfq, Shipment, Escrow, TradeLoan } from "@/models";
-import { getSessionUser } from "@/lib/session";
+import { eq, inArray, desc } from "drizzle-orm";
+import { serviceDb } from "@/db/client";
+import { bids, rfqs, shipments, escrowAccounts, tradeLoans } from "@/db/schema";
+import { getSessionActor } from "@/lib/session";
 import { STS_TIER_LABELS } from "@/lib/sts";
 import { recalculateAndSaveSts } from "@/lib/sts-server";
 import { KycPanel } from "@/components/dashboard/KycPanel";
 import { LoanPanel } from "@/components/dashboard/LoanPanel";
 import { StsBadge } from "@/components/StsBadge";
-import { serialize } from "@/lib/serialize";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const sessionUser = await getSessionUser();
-  if (!sessionUser) redirect("/login");
+  const actor = await getSessionActor();
+  if (!actor) redirect("/login");
 
-  await dbConnect();
-  const user = await User.findById(sessionUser.id).orFail();
+  const { organization } = actor;
 
-  if (user.role === "EXPORTER") {
-    const breakdown = await recalculateAndSaveSts(user._id.toString());
+  if (organization.type === "EXPORTER") {
+    const breakdown = await recalculateAndSaveSts(organization.id);
 
-    const bids = await Bid.find({ exporterId: user._id })
-      .populate("rfqId", "product unit")
-      .sort({ createdAt: -1 });
-
-    const exporterShipments = await Shipment.find({ exporterId: user._id });
-    const shipmentRfqIds = exporterShipments.map((s) => s.rfqId);
-    const awardedRfqs = await Rfq.find({
-      _id: { $in: shipmentRfqIds },
-      status: { $in: ["AWARDED", "FULFILLED"] },
+    const myBids = await serviceDb.query.bids.findMany({
+      where: eq(bids.organizationId, organization.id),
+      orderBy: [desc(bids.createdAt)],
     });
-    const escrows = await Escrow.find({ rfqId: { $in: awardedRfqs.map((r) => r._id) } });
-    const escrowByRfqId = new Map(escrows.map((e) => [e.rfqId.toString(), e]));
+    const bidRfqIds = Array.from(new Set(myBids.map((b) => b.rfqId)));
+    const bidRfqs = bidRfqIds.length
+      ? await serviceDb.query.rfqs.findMany({ where: (r, { inArray: inArrayOp }) => inArrayOp(r.id, bidRfqIds) })
+      : [];
+    const rfqById = new Map(bidRfqs.map((r) => [r.id, r]));
 
-    const loans = await TradeLoan.find({ exporterId: user._id }).sort({ requestedAt: -1 });
-    const loanedRfqIds = new Set(loans.filter((l) => l.rfqId).map((l) => l.rfqId!.toString()));
+    const exporterShipments = await serviceDb.query.shipments.findMany({
+      where: eq(shipments.exporterOrganizationId, organization.id),
+    });
+    const shipmentRfqIds = exporterShipments.map((s) => s.rfqId);
+    const awardedRfqs = shipmentRfqIds.length
+      ? await serviceDb.query.rfqs.findMany({
+          where: (r, { inArray: inArrayOp, and: andOp, or: orOp, eq: eqOp }) =>
+            andOp(inArrayOp(r.id, shipmentRfqIds), orOp(eqOp(r.status, "AWARDED"), eqOp(r.status, "FULFILLED"))),
+        })
+      : [];
+    const escrows = awardedRfqs.length
+      ? await serviceDb.query.escrowAccounts.findMany({
+          where: inArray(
+            escrowAccounts.rfqId,
+            awardedRfqs.map((r) => r.id)
+          ),
+        })
+      : [];
+    const escrowByRfqId = new Map(escrows.map((e) => [e.rfqId, e]));
+
+    const loans = await serviceDb.query.tradeLoans.findMany({
+      where: eq(tradeLoans.exporterOrganizationId, organization.id),
+      orderBy: [desc(tradeLoans.requestedAt)],
+    });
+    const loanedRfqIds = new Set(loans.filter((l) => l.rfqId).map((l) => l.rfqId!));
 
     const eligibleRfqs = awardedRfqs
-      .filter((r) => escrowByRfqId.has(r._id.toString()) && !loanedRfqIds.has(r._id.toString()))
+      .filter((r) => escrowByRfqId.has(r.id) && !loanedRfqIds.has(r.id))
       .map((r) => ({
-        id: r._id.toString(),
+        id: r.id,
         product: r.product,
-        escrowAmount: escrowByRfqId.get(r._id.toString())!.amount,
+        escrowAmount: Number(escrowByRfqId.get(r.id)!.amount),
       }));
 
     return (
       <main className="mx-auto max-w-4xl px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-50">Exporter Dashboard</h1>
-        <p className="mt-1 text-slate-400">{user.companyName ?? user.name}</p>
+        <p className="mt-1 text-slate-400">{organization.name}</p>
 
         <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
           <div className="flex items-center justify-between">
@@ -78,40 +97,36 @@ export default async function DashboardPage() {
         </div>
 
         <div className="mt-6">
-          <KycPanel kycStatus={user.kycStatus} />
+          <KycPanel kycStatus={organization.kycStatus} />
         </div>
 
         <div className="mt-6">
           <LoanPanel
             eligibleRfqs={eligibleRfqs}
-            loans={
-              serialize(loans) as Array<{
-                id: string;
-                requestedAmount: number;
-                approvedAmount: number | null;
-                interestRatePercent: number | null;
-                riskBand: string | null;
-                status: string;
-              }>
-            }
+            loans={loans.map((l) => ({
+              id: l.id,
+              requestedAmount: Number(l.requestedAmount),
+              approvedAmount: l.approvedAmount ? Number(l.approvedAmount) : null,
+              interestRatePercent: l.interestRatePercent ? Number(l.interestRatePercent) : null,
+              riskBand: l.riskBand,
+              status: l.status,
+            }))}
           />
         </div>
 
         <div className="mt-6 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
           <h2 className="font-semibold text-slate-100">My Bids</h2>
-          {bids.length === 0 ? (
+          {myBids.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">No bids yet.</p>
           ) : (
             <ul className="mt-3 space-y-2">
-              {bids.map((bid) => {
-                const rfq = bid.rfqId as unknown as { _id: string; product: string; unit: string };
+              {myBids.map((bid) => {
+                const rfq = rfqById.get(bid.rfqId);
+                if (!rfq) return null;
                 return (
-                  <li key={bid._id.toString()}>
-                    <Link
-                      href={`/marketplace/${rfq._id}`}
-                      className="text-sm text-slate-300 hover:text-sky-400"
-                    >
-                      {rfq.product} — ${bid.pricePerUnit}/{rfq.unit} · {bid.status}
+                  <li key={bid.id}>
+                    <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
+                      {rfq.product} — ${Number(bid.pricePerUnit)}/{rfq.unit} · {bid.status}
                     </Link>
                   </li>
                 );
@@ -123,29 +138,34 @@ export default async function DashboardPage() {
     );
   }
 
-  // Importer dashboard. Counts bids in-memory rather than via an aggregation
-  // $lookup — see the comment in lib/rfqs.ts for why.
-  const importerRfqs = await Rfq.find({ importerId: user._id }).sort({ createdAt: -1 });
-  const importerRfqBids = await Bid.find(
-    { rfqId: { $in: importerRfqs.map((r) => r._id) } },
-    { rfqId: 1 }
-  );
+  // Importer dashboard. Counts bids in-memory rather than a SQL aggregate —
+  // see the comment in lib/rfqs.ts for why.
+  const importerRfqs = await serviceDb.query.rfqs.findMany({
+    where: eq(rfqs.organizationId, organization.id),
+    orderBy: [desc(rfqs.createdAt)],
+  });
+  const importerRfqBids = importerRfqs.length
+    ? await serviceDb
+        .select({ rfqId: bids.rfqId })
+        .from(bids)
+        .where(
+          inArray(
+            bids.rfqId,
+            importerRfqs.map((r) => r.id)
+          )
+        )
+    : [];
   const importerBidCountByRfqId = new Map<string, number>();
   for (const bid of importerRfqBids) {
-    const key = bid.rfqId.toString();
-    importerBidCountByRfqId.set(key, (importerBidCountByRfqId.get(key) ?? 0) + 1);
+    importerBidCountByRfqId.set(bid.rfqId, (importerBidCountByRfqId.get(bid.rfqId) ?? 0) + 1);
   }
-  const rfqs = importerRfqs.map((rfq) => ({
-    ...rfq.toObject(),
-    bidCount: importerBidCountByRfqId.get(rfq._id.toString()) ?? 0,
-  }));
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-50">Importer Dashboard</h1>
-          <p className="mt-1 text-slate-400">{user.companyName ?? user.name}</p>
+          <p className="mt-1 text-slate-400">{organization.name}</p>
         </div>
         <Link
           href="/marketplace/new"
@@ -157,19 +177,17 @@ export default async function DashboardPage() {
 
       <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900/40 p-6">
         <h2 className="font-semibold text-slate-100">My RFQs</h2>
-        {rfqs.length === 0 ? (
+        {importerRfqs.length === 0 ? (
           <p className="mt-2 text-sm text-slate-500">You haven&apos;t posted any RFQs yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {(serialize(rfqs) as Array<{ id: string; product: string; status: string; bidCount: number }>).map(
-              (rfq) => (
-                <li key={rfq.id}>
-                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
-                    {rfq.product} — {rfq.status} · {rfq.bidCount} bids
-                  </Link>
-                </li>
-              )
-            )}
+            {importerRfqs.map((rfq) => (
+              <li key={rfq.id}>
+                <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
+                  {rfq.product} — {rfq.status} · {importerBidCountByRfqId.get(rfq.id) ?? 0} bids
+                </Link>
+              </li>
+            ))}
           </ul>
         )}
       </div>

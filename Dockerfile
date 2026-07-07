@@ -16,9 +16,10 @@ COPY . .
 # Build-time env vars only need to satisfy zod validation (src/lib/env.ts);
 # they are not the values used at runtime (those come from docker-compose /
 # the deployment environment via the "runner" stage below).
-ENV MONGODB_URI="mongodb://localhost:27017/seasharp-build"
-ENV NEXTAUTH_SECRET="build-time-placeholder-build-time-placeholder"
-ENV NEXTAUTH_URL="http://localhost:3000"
+ENV DATABASE_URL="postgres://postgres:postgres@localhost:5432/seasharp-build"
+ENV APP_DATABASE_URL="postgres://app_user:app_user@localhost:5432/seasharp-build"
+ENV AUTH_JWT_SECRET="build-time-placeholder-build-time-placeholder"
+ENV APP_URL="http://localhost:3000"
 RUN npm run build
 
 # ---- runner: minimal production image ----

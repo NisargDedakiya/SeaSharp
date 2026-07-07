@@ -1,27 +1,75 @@
 import "server-only";
-import { Rfq, Bid } from "@/models";
+import { eq, inArray, sql } from "drizzle-orm";
+import { serviceDb } from "@/db/client";
+import { rfqs, organizations, bids } from "@/db/schema";
 
-// Shared by the /marketplace page (server component) and the /api/rfqs
-// route so both list views stay in sync. Uses populate() + an in-memory bid
-// count rather than an aggregation $lookup — simpler, and it keeps this
-// codebase's Mongo usage to features with the widest compatibility across
-// MongoDB-wire-protocol backends (some, like this repo's local FerretDB dev
-// stand-in, don't implement $lookup).
-export async function listOpenRfqs() {
-  const rfqs = await Rfq.find({ status: "OPEN" })
-    .sort({ createdAt: -1 })
-    .populate("importerId", "name companyName country kycStatus");
+export type RfqListItem = {
+  id: string;
+  product: string;
+  hsCode: string;
+  originCountry: string;
+  destinationCountry: string;
+  volume: number;
+  unit: string;
+  targetPricePerUnit: number;
+  currency: string;
+  deadline: Date;
+  createdAt: Date;
+  status: string;
+  bidCount: number;
+  importer: { name: string; companyName: string | null; kycStatus: string };
+};
 
-  const rfqIds = rfqs.map((rfq) => rfq._id);
-  const bids = await Bid.find({ rfqId: { $in: rfqIds } }, { rfqId: 1 });
+// Shared by the /marketplace page and /api/rfqs so both list views stay in
+// sync. Counts bids in-memory rather than a SQL aggregate join — mirrors the
+// Phase 1 Mongoose approach and keeps this simple for the current data
+// volumes; revisit with a GROUP BY if the RFQ count grows large.
+export async function listOpenRfqs(): Promise<RfqListItem[]> {
+  const rows = await serviceDb
+    .select({
+      id: rfqs.id,
+      product: rfqs.product,
+      hsCode: rfqs.hsCode,
+      originCountry: rfqs.originCountry,
+      destinationCountry: rfqs.destinationCountry,
+      volume: rfqs.volume,
+      unit: rfqs.unit,
+      targetPricePerUnit: rfqs.targetPricePerUnit,
+      currency: rfqs.currency,
+      deadline: rfqs.deadline,
+      createdAt: rfqs.createdAt,
+      status: rfqs.status,
+      importerName: organizations.name,
+      importerKycStatus: organizations.kycStatus,
+    })
+    .from(rfqs)
+    .innerJoin(organizations, eq(organizations.id, rfqs.organizationId))
+    .where(eq(rfqs.status, "OPEN"))
+    .orderBy(sql`${rfqs.createdAt} desc`);
+
+  const rfqIds = rows.map((r) => r.id);
+  const bidRows = rfqIds.length
+    ? await serviceDb.select({ rfqId: bids.rfqId }).from(bids).where(inArray(bids.rfqId, rfqIds))
+    : [];
   const bidCountByRfqId = new Map<string, number>();
-  for (const bid of bids) {
-    const key = bid.rfqId.toString();
-    bidCountByRfqId.set(key, (bidCountByRfqId.get(key) ?? 0) + 1);
+  for (const bid of bidRows) {
+    bidCountByRfqId.set(bid.rfqId, (bidCountByRfqId.get(bid.rfqId) ?? 0) + 1);
   }
 
-  return rfqs.map((rfq) => {
-    const { importerId, ...rest } = rfq.toObject();
-    return { ...rest, importer: importerId, bidCount: bidCountByRfqId.get(rfq._id.toString()) ?? 0 };
-  });
+  return rows.map((r) => ({
+    id: r.id,
+    product: r.product,
+    hsCode: r.hsCode,
+    originCountry: r.originCountry,
+    destinationCountry: r.destinationCountry,
+    volume: Number(r.volume),
+    unit: r.unit,
+    targetPricePerUnit: Number(r.targetPricePerUnit),
+    currency: r.currency,
+    deadline: r.deadline,
+    createdAt: r.createdAt,
+    status: r.status,
+    bidCount: bidCountByRfqId.get(r.id) ?? 0,
+    importer: { name: r.importerName, companyName: r.importerName, kycStatus: r.importerKycStatus },
+  }));
 }

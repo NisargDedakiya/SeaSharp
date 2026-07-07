@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
+import { getSessionUser } from "@/lib/session";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -21,20 +21,20 @@ export const metadata: Metadata = {
     "One platform. Every trade. Anywhere in the world. Trade intelligence, documentation, RFQ marketplace, logistics, and trade finance in one connected ecosystem.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getSessionUser();
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-slate-950 text-slate-100 antialiased`}
       >
-        <Providers>
-          <Navbar />
-          {children}
-        </Providers>
+        <Navbar user={user} />
+        {children}
       </body>
     </html>
   );

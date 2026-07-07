@@ -16,24 +16,29 @@ signal to update one of them deliberately — not to let them silently drift.
 
 ## Current state vs. v2.0 target — read this first
 
-**These documents describe the v2.0 target architecture, not what's running
-today.** Don't let that ambiguity cause a wrong deploy or a confused
-onboarding. Concretely:
+**These documents describe the v2.0 target architecture.** The database,
+ORM, auth, and identity model columns below are now live — not a future
+target — following the stack migration. What's still target-only is the
+newer platform surface (Notifications, Admin Console, Wallet/Ledger, real
+Supabase Auth/Storage/Realtime, Next.js 15). Concretely:
 
-| | Today (Phase 1, shipped) | v2.0 target (this doc set) |
+| | Today (shipped) | v2.0 target (this doc set) |
 |---|---|---|
-| Database | MongoDB via Mongoose, multi-doc transactions on a replica set | Supabase PostgreSQL via Drizzle ORM, Row Level Security |
-| Auth | NextAuth (Credentials provider) | Supabase Auth |
+| Database | **Postgres via Drizzle ORM, real transactions + Row Level Security** ✅ | Supabase PostgreSQL via Drizzle ORM, Row Level Security |
+| Auth | Local Supabase-Auth-compatible adapter (`src/lib/auth/`) — same `auth.users` shape, JWT session cookies | Real Supabase Auth (GoTrue) — see [top-level README § Why not real Supabase here](../README.md#why-not-real-supabase-here) |
 | Framework | Next.js 14 (App Router) | Next.js 15 (App Router) |
-| Identity model | Flat `User` with a `role` enum | Organizations, teams, members, RBAC, invitations |
-| Domains live | Trade Intelligence, RFQ Marketplace, Logistics (stub), Trade Finance (stub), STS, KYC (stub) | All of the above, plus Notifications, Activity Center, Company Profiles, Admin Console, Wallet/Ledger, full AI service layer |
+| Identity model | **Organizations, RBAC (roles/permissions), organization_members** ✅ | Same, plus teams/departments and invitation acceptance flow |
+| Domains live | Identity/Orgs, Trade Intelligence, RFQ Marketplace, Logistics (stub), Trade Finance (stub), STS, KYC (stub) | All of the above, plus Notifications, Activity Center, Company Profiles, Admin Console, Wallet/Ledger, full AI service layer |
 | Storage | None (no file uploads yet) | Supabase Storage buckets for documents/contracts/certificates/avatars |
 | Realtime | Polling (`CountdownTimer`) | Supabase Realtime channels |
 
 The top-level [`README.md`](../README.md) describes what's actually running.
-This directory describes what we're building toward. Phase 1 was deliberately
-scoped tight (see [Product Vision § Roadmap](./01-product-vision.md#roadmap))
-— the gap between the two tables above is not drift, it's the plan.
+This directory describes what we're building toward. The identity/database
+foundation and the Trade Intelligence + Marketplace domains have been
+migrated onto that foundation; the newer v2.0-only platform surface
+(Notifications, Admin Console, real Supabase Auth, etc.) has not been built
+yet — see [Product Vision § Roadmap](./01-product-vision.md#roadmap) for the
+phased plan that gap follows.
 
 ## How to use these documents
 

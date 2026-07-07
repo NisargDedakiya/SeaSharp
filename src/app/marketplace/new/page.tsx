@@ -1,11 +1,11 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/session";
+import { getSessionActor } from "@/lib/session";
 import { NewRfqForm } from "./NewRfqForm";
 
 export default async function NewRfqPage() {
-  const user = await getSessionUser();
-  if (!user) redirect("/login");
-  if (user.role !== "IMPORTER") redirect("/marketplace");
+  const actor = await getSessionActor();
+  if (!actor) redirect("/login");
+  if (actor.organization.type !== "IMPORTER") redirect("/marketplace");
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">

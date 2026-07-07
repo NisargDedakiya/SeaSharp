@@ -26,8 +26,8 @@ export default defineConfig({
     pool: "forks",
     environment: "node",
     env: {
-      NEXTAUTH_SECRET: "test-secret-test-secret-test-secret-1234",
-      NEXTAUTH_URL: "http://localhost:3000",
+      AUTH_JWT_SECRET: "test-secret-test-secret-test-secret-1234",
+      APP_URL: "http://localhost:3000",
       NODE_ENV: "test",
     },
     globalSetup: ["./tests/global-setup.ts"],

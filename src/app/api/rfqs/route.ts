@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { z } from "zod";
-import { authOptions } from "@/lib/auth";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { Rfq } from "@/models";
+import { serviceDb } from "@/db/client";
+import { rfqs } from "@/db/schema";
 import { listOpenRfqs } from "@/lib/rfqs";
-import { serialize } from "@/lib/serialize";
+import { getSessionActor } from "@/lib/session";
 
 const createRfqSchema = z.object({
   product: z.string().min(2),
@@ -20,20 +19,35 @@ const createRfqSchema = z.object({
 });
 
 export const GET = withApiHandler(async () => {
-  const rfqs = await listOpenRfqs();
-  return NextResponse.json(serialize(rfqs));
+  const rfqList = await listOpenRfqs();
+  return NextResponse.json(rfqList);
 });
 
 export const POST = withApiHandler(async (request: Request) => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user || session.user.role !== "IMPORTER") {
+  const actor = await getSessionActor();
+  if (!actor || actor.organization.type !== "IMPORTER") {
     throw new AppError(403, "Only importers can post RFQs.");
   }
 
   const body = await request.json();
   const data = createRfqSchema.parse(body);
 
-  const rfq = await Rfq.create({ ...data, importerId: session.user.id });
+  const [rfq] = await serviceDb
+    .insert(rfqs)
+    .values({
+      ...data,
+      volume: data.volume.toString(),
+      targetPricePerUnit: data.targetPricePerUnit.toString(),
+      organizationId: actor.organization.id,
+    })
+    .returning();
 
-  return NextResponse.json(serialize(rfq), { status: 201 });
+  return NextResponse.json(
+    {
+      ...rfq,
+      volume: Number(rfq.volume),
+      targetPricePerUnit: Number(rfq.targetPricePerUnit),
+    },
+    { status: 201 }
+  );
 });

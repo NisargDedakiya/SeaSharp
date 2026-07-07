@@ -1,32 +1,36 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { eq } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { User } from "@/models";
+import { serviceDb } from "@/db/client";
+import { organizations, profiles } from "@/db/schema";
 import { runSupplierCheck } from "@/lib/supplierradar";
 import { recalculateAndSaveSts } from "@/lib/sts-server";
+import { getSessionActor } from "@/lib/session";
 
 export const POST = withApiHandler(async () => {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const actor = await getSessionActor();
+  if (!actor) {
     throw new AppError(401, "Sign in required.");
   }
 
-  const user = await User.findById(session.user.id).orFail();
+  const [org, profile] = await Promise.all([
+    serviceDb.query.organizations.findFirst({ where: eq(organizations.id, actor.organization.id) }),
+    serviceDb.query.profiles.findFirst({ where: eq(profiles.id, actor.user.id) }),
+  ]);
+  if (!org) throw new AppError(404, "Organization not found.");
+
   const check = runSupplierCheck({
-    companyName: user.companyName,
-    country: user.country,
-    phone: user.phone,
+    companyName: org.name,
+    country: org.country,
+    phone: profile?.phone ?? null,
   });
 
-  user.kycStatus = check.cleared ? "VERIFIED" : "PENDING";
-  user.kycSubmittedAt = new Date();
-  user.kycVerifiedAt = check.cleared ? new Date() : null;
-  await user.save();
+  const kycStatus = check.cleared ? "VERIFIED" : "PENDING";
+  await serviceDb.update(organizations).set({ kycStatus }).where(eq(organizations.id, org.id));
 
-  if (user.role === "EXPORTER") {
-    await recalculateAndSaveSts(user._id.toString());
+  if (actor.organization.type === "EXPORTER") {
+    await recalculateAndSaveSts(actor.organization.id);
   }
 
-  return NextResponse.json({ kycStatus: user.kycStatus, flags: check.flags });
+  return NextResponse.json({ kycStatus, flags: check.flags });
 });
