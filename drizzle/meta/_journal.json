@@ -15,6 +15,13 @@
       "when": 1783406778334,
       "tag": "0001_sts_score_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783426602124,
+      "tag": "0002_domain_events",
+      "breakpoints": true
     }
   ]
 }

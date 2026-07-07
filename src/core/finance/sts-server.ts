@@ -2,7 +2,7 @@ import "server-only";
 import { eq, inArray } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
 import { organizations, shipments, escrowAccounts, tradeLoans, stsScoreLogs } from "@/db/schema";
-import { calculateStsScore, type StsBreakdown } from "@/lib/sts";
+import { calculateStsScore, type StsBreakdown } from "@/core/finance/sts";
 
 // Recomputes an exporter organization's STS from its live platform history,
 // persists it on the organization row, and appends an audit log entry

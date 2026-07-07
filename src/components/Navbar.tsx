@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import type { SessionUser } from "@/lib/session";
+import type { SessionUser } from "@/core/identity/session";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (

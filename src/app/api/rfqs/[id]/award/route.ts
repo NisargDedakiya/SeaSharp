@@ -4,8 +4,12 @@ import { eq, and, ne } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { rfqs, bids, organizations, escrowAccounts, escrowMilestones, shipments } from "@/db/schema";
-import { ESCROW_MILESTONES, recommendRoute } from "@/lib/logistics";
-import { getSessionActor } from "@/lib/session";
+import { ESCROW_MILESTONES } from "@/core/finance/escrow";
+import { getRouteRecommendation } from "@/core/logistics";
+import { getSessionActor } from "@/core/identity/session";
+import { getOrganizationMemberProfileIds } from "@/core/identity/organizations";
+import { assertRfqTransition } from "@/core/workflow/trade-workflow";
+import { emit } from "@/core/events";
 
 const awardSchema = z.object({ bidId: z.string() });
 
@@ -30,9 +34,7 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
   if (rfq.organizationId !== actor.organization.id) {
     throw new AppError(403, "Only the RFQ owner can award a bid.");
   }
-  if (rfq.status !== "OPEN") {
-    throw new AppError(409, "This RFQ has already been awarded or closed.");
-  }
+  assertRfqTransition(rfq.status, "AWARDED");
 
   const body = await request.json();
   const { bidId } = awardSchema.parse(body);
@@ -50,7 +52,7 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
   if (!exporter) throw new AppError(404, "Exporter organization not found.");
 
   const escrowAmount = Math.round(Number(winningBid.pricePerUnit) * Number(rfq.volume) * 100) / 100;
-  const route = recommendRoute({
+  const route = getRouteRecommendation({
     volume: Number(rfq.volume),
     originLocation: rfq.originCountry,
     destinationLocation: rfq.destinationCountry,
@@ -102,6 +104,19 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
       .returning();
 
     return { escrow: createdEscrow, shipment: createdShipment };
+  });
+
+  const exporterProfileIds = await getOrganizationMemberProfileIds(winningBid.organizationId);
+  await emit({
+    type: "RFQ_AWARDED",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: {
+      rfqId: rfq.id,
+      bidId: winningBid.id,
+      escrowId: escrow.id,
+      recipientProfileIds: exporterProfileIds,
+    },
   });
 
   return NextResponse.json(

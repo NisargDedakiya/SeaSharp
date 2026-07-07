@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreLoanRequest } from "@/lib/creditlayer";
+import { scoreLoanRequest } from "@/core/ai/credit-ai";
 
 describe("scoreLoanRequest", () => {
   it("rejects financing for a NEW-tier exporter (no track record yet)", () => {

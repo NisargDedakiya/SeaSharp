@@ -3,8 +3,9 @@ import { z } from "zod";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { rfqs } from "@/db/schema";
-import { listOpenRfqs } from "@/lib/rfqs";
-import { getSessionActor } from "@/lib/session";
+import { listOpenRfqs } from "@/core/trade/marketplace";
+import { getSessionActor } from "@/core/identity/session";
+import { emit } from "@/core/events";
 
 const createRfqSchema = z.object({
   product: z.string().min(2),
@@ -41,6 +42,13 @@ export const POST = withApiHandler(async (request: Request) => {
       organizationId: actor.organization.id,
     })
     .returning();
+
+  await emit({
+    type: "RFQ_CREATED",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: { rfqId: rfq.id, product: rfq.product },
+  });
 
   return NextResponse.json(
     {

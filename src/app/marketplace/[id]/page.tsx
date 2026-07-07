@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { eq, asc } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
 import { rfqs, organizations, bids, escrowAccounts, escrowMilestones, shipments } from "@/db/schema";
-import { getSessionActor } from "@/lib/session";
+import { getSessionActor } from "@/core/identity/session";
 import { countryName } from "@/lib/countries";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { Reveal } from "@/components/Reveal";

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { listOpenRfqs } from "@/lib/rfqs";
-import { getSessionActor } from "@/lib/session";
+import { listOpenRfqs } from "@/core/trade/marketplace";
+import { getSessionActor } from "@/core/identity/session";
 import { Reveal } from "@/components/Reveal";
 import { TrustStrip } from "@/components/TrustStrip";
 import { MarketplaceBrowser } from "./MarketplaceBrowser";

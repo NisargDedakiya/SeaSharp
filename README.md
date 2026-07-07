@@ -23,7 +23,7 @@ below.
 - Tailwind CSS, `framer-motion`
 - **Postgres via Drizzle ORM**, with real Row Level Security — see
   [Row Level Security](#row-level-security) below
-- A local Supabase-Auth-compatible auth adapter (`src/lib/auth/`) — signs
+- A local Supabase-Auth-compatible auth adapter (`src/core/identity/`) — signs
   JWT session cookies, writes to an `auth.users` table shaped exactly like
   Supabase's GoTrue would, so swapping in real Supabase Auth later only
   touches that one module, not any caller (see
@@ -36,6 +36,30 @@ below.
   GitHub Actions CI (with a Postgres service container)
 - Sentry (`@sentry/nextjs`), pino structured logging
 - Docker / docker-compose
+
+## Architecture
+
+Business logic lives in `src/core/<engine>/` (Identity, Trade, Logistics,
+Finance, AI, Notifications, Events, Workflow) — `app/api/**/route.ts`
+handlers stay thin: parse input, call an engine, map the result to a
+response. See
+[docs/03-technical-architecture.md § Folder structure](./docs/03-technical-architecture.md#folder-structure)
+for the full layout and the reasoning behind it. Three things worth knowing
+up front:
+
+- **AI never owns business logic.** `src/core/ai/` (ComplianceAI, CreditAI,
+  RouteAI, MarketAI) only returns recommendations; the calling engine
+  decides what to do with them.
+- **Every business action emits an event.** `src/core/events`'s `emit()`
+  persists to an append-only `domain_events` table and fans out to
+  subscribers — today that's an audit-log writer and an in-app notification
+  dispatcher (`src/core/notifications/`). See
+  [docs/03-technical-architecture.md § Event system](./docs/03-technical-architecture.md#event-system).
+- **Third-party integrations live behind `src/integrations/<provider>/`.**
+  `resend/` and `twilio/` are wired into the notification service today
+  (inert without an API key, like Sentry); `stripe/`, `maps/`, `freight/`,
+  and `government/` are reserved locations for features not built yet, not
+  live code.
 
 ## What's implemented
 
@@ -57,17 +81,24 @@ below.
   CreditLayer stub keyed off the exporter organization's SeaSharp Trust Score.
 - **SeaSharp Trust Score (STS)**: composite 0–1000 score (KYC, on-time
   delivery, escrow speed, dispute rate, loan repayment) recalculated after
-  every fulfilled trade — pure logic in `src/lib/sts.ts`, DB-backed
-  persistence in `src/lib/sts-server.ts`.
-- **KYC/KYB**: a SupplierRadar-stub check (`src/lib/supplierradar.ts`) gates
-  an organization's verification status, which feeds into STS.
+  every fulfilled trade — pure logic in `src/core/finance/sts.ts`, DB-backed
+  persistence in `src/core/finance/sts-server.ts`.
+- **KYC/KYB**: a ComplianceAI-stub check (`src/core/ai/compliance-ai.ts`)
+  gates an organization's verification status, which feeds into STS.
+- **Events, audit log, and in-app notifications**: every business action
+  (RFQ posted, bid submitted, award, escrow milestone release, KYC decision,
+  loan decision) emits a domain event (`src/core/events/`) that's persisted
+  to an append-only `domain_events` table, written to `audit_logs`, and
+  fanned out to the recipients' in-app `notifications` — see
+  [Architecture](#architecture) below.
 
-AI modules (BidSense, SupplierRadar, DocAI, RouteIQ, CreditLayer) are
-implemented as deterministic stubs in `src/lib/` with the same interfaces a
-trained model would need — swap the implementation without touching callers.
-The wider v2.0 vision (Notification Center, Activity Center, Admin Console,
-RiskAI/PriceAI/MarketAI, wallet/ledger, contracts/negotiation, chat) is
-schema-ready (see `src/db/schema/`) but not yet wired up to any UI/API — see
+AI modules (MarketAI/BidSense, ComplianceAI/SupplierRadar, RouteAI/RouteIQ,
+CreditAI/CreditLayer) are implemented as deterministic stubs in
+`src/core/ai/` with the same interfaces a trained model would need — swap
+the implementation without touching callers. The wider v2.0 vision (TradeAI,
+PriceAI, FraudAI, DocumentAI, Admin Console, wallet/ledger,
+contracts/negotiation, chat) is schema-ready (see `src/db/schema/`) but not
+yet wired up to any UI/API — see
 [docs/02-product-requirements.md](./docs/02-product-requirements.md) for the
 phased plan.
 
@@ -198,7 +229,7 @@ needed — Supabase already provisions `anon`/`authenticated`/`service_role`
 and PostgREST already sets `request.jwt.claims` per request. Swapping in
 real Supabase Auth means: pointing `DATABASE_URL` at the Supabase Postgres
 connection string, dropping the local `auth.users` population from
-`src/lib/auth/register.ts` in favor of the real `supabase.auth.signUp()`
+`src/core/identity/register.ts` in favor of the real `supabase.auth.signUp()`
 call, and removing `drizzle/manual/01_rls_and_roles.sql`'s role-provisioning
 statements (keeping only the RLS policies themselves, which are
 plain portable SQL).

@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { rfqs, organizations, bids, escrowAccounts, shipments } from "@/db/schema";
-import { getSessionUser } from "@/lib/session";
+import { getSessionUser } from "@/core/identity/session";
 
 // Blind bidding: the RFQ owner (importer) sees every bid to decide who to
 // award. Exporters only ever see their own bid price plus the total bid

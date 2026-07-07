@@ -46,55 +46,104 @@ being renegotiated for v2.0:
    pattern used in Phase 1 continues to apply verbatim.
 6. **Pure logic is separated from I/O.** Scoring, calculation, and matching
    logic (STS, landed cost, credit scoring) lives in dependency-free modules
-   that are unit-testable without a database — mirrors `src/lib/sts.ts` vs.
-   `src/lib/sts-server.ts` in Phase 1.
+   that are unit-testable without a database — e.g. `src/core/finance/sts.ts`
+   (pure) vs. `src/core/finance/sts-server.ts` (DB-backed).
 7. **AI services ship as documented, deterministic stubs first.** Real models
    swap in behind the same interface later — never block a feature launch on
-   a trained model being ready.
+   a trained model being ready. **AI never owns business logic** — it's
+   always called by an engine, which decides what to do with the result.
 
 ## Folder structure
 
+This is the live layout, not a target:
+
 ```
 src/
-  app/                        # Next.js App Router — routes + layouts
-    (marketing)/               # public site: home, pricing, features, blog...
-    (app)/                     # authenticated app shell
-      [org]/                  # org-scoped routes (dashboard, marketplace, ...)
-    api/                       # Route Handlers, one folder per resource
-  components/
-    ui/                        # shadcn primitives, themed
-    landing/                   # marketing-page-only components
-    org/                       # organization/team/RBAC components
-    marketplace/
-    logistics/
-    finance/
-    admin/
+  app/                         # Next.js App Router — routes + layouts
+    api/                        # Route Handlers, one folder per resource
+    marketplace/, dashboard/, ... # pages
+  components/                  # presentational + client-interactive UI
+  core/                        # the Core Engine — see below
+    identity/                   # Identity Engine: auth adapter, sessions, orgs, RBAC
+    trade/                       # Trade Engine: intelligence (HS/tariffs/compliance), marketplace (RFQ listing)
+    logistics/                   # Logistics Engine: calls RouteAI for freight recommendations
+    finance/                     # Finance Engine: STS scoring, escrow milestone constants
+    ai/                          # AI Platform: compliance-ai, credit-ai, route-ai, market-ai (each a documented stub)
+    notifications/                # Notification Service: notify() — the only writer of the notifications table
+    events/                       # Event Bus: emit()/subscribe(), domain_events table, audit-log + notification subscribers
+    workflow/                     # Workflow Engine: cross-cutting transition rules (RFQ status, escrow milestone order)
+  integrations/                # one folder per third party, narrow interface + documented stub
+    stripe/, resend/, twilio/, maps/, freight/, government/
   db/
-    schema/                    # Drizzle schema, one file per domain (see Database Design)
-    queries/                   # composable query functions, no route-handler logic here
-    migrations/                # generated Drizzle migrations
-  lib/
-    auth/                      # Supabase Auth helpers, session/org context
-    ai/                        # AI service interfaces + stub implementations
-    validation/                # shared Zod schemas
-    api-handler.ts             # centralized route wrapper (carried from Phase 1)
-    logger.ts
-    rate-limit.ts
-  emails/                      # React Email templates sent via Resend
+    schema/                      # Drizzle schema, one file per domain (see Database Design)
+    client.ts                    # serviceDb (RLS bypass) + withRlsContext()
+  lib/                         # cross-cutting infra, not domain logic
+    api-handler.ts               # centralized route wrapper
+    env.ts, logger.ts, rate-limit.ts, countries.ts
 tests/
-  unit/
-  integration/
-  e2e/                          # Playwright specs
-supabase/
-  migrations/                  # SQL migrations (mirrors db/migrations for Supabase CLI)
-  functions/                    # Edge Functions
+  unit/                         # one file per core/ module with pure logic
+  integration/                  # full lifecycle tests against a real disposable Postgres db
+drizzle/
+  manual/                       # hand-written SQL: RLS policies, roles, auth.uid()
 ```
 
-Route-handler code stays thin: parse input, call a `db/queries/` function or
-a `lib/` service, map the result to a response. Business logic does not live
-inline in `app/api/**/route.ts` files — this was a Phase 1 convention
-(`src/lib/rfqs.ts`, `src/lib/sts.ts` etc. as the logic layer under thin route
-handlers) and continues unchanged.
+**The Core Engine vs. everything else**: `app/` and `components/` are
+consumers, never sources of business logic — a route handler parses input,
+calls into `core/<engine>/`, and maps the result to a response (see
+`src/app/api/rfqs/[id]/award/route.ts` for the clearest example: it reads
+like an orchestration script, not a place where escrow/workflow rules are
+decided). `core/ai/` is a dependency of the other engines, never the other
+way around — `src/core/logistics/index.ts` calling into
+`src/core/ai/route-ai.ts` is the reference example of "engine calls AI, AI
+returns a recommendation, engine decides what to do with it."
+
+## Event system
+
+Every business action a route handler completes emits a domain event via
+`src/core/events`'s `emit()` — see `src/core/events/types.ts` for the
+current catalog (`RFQ_CREATED`, `BID_SUBMITTED`, `RFQ_AWARDED`,
+`ESCROW_MILESTONE_RELEASED`, `SHIPMENT_DELIVERED`, `KYC_VERIFIED`,
+`KYC_PENDING`, `LOAN_DECIDED`). `emit()` does two things, always:
+
+1. Persists the event to the `domain_events` table (an append-only log —
+   this is the record future analytics/AI training pipelines read from).
+2. Runs every registered subscriber (`src/core/events/subscribers.ts`):
+   today that's an audit-log writer (the only writer of `audit_logs`) and a
+   notification dispatcher that reads `payload.recipientProfileIds` and
+   calls `core/notifications`'s `notify()` for each one.
+
+A route decides *who* should be notified about its own event (by including
+`recipientProfileIds` in the payload) — the event bus and its subscribers
+never re-derive that from scratch. This keeps notification-worthiness a
+business decision made where the context already exists, not a rule buried
+in a generic dispatcher.
+
+Events are dispatched synchronously, in-process, after the triggering
+transaction has already committed — a subscriber failure is logged and
+swallowed (see `bus.ts`), never rolled back into the business transaction
+that already succeeded.
+
+## Workflow engine
+
+`src/core/workflow/trade-workflow.ts` centralizes transition rules that were
+previously (Phase 1) re-derived inline in each route:
+
+- `assertRfqTransition(from, to)` — the RFQ status graph (`OPEN` →
+  `AWARDED`/`CANCELLED`, `AWARDED` → `FULFILLED`). Called by the award route
+  (`OPEN` → `AWARDED`) and the escrow release route's final milestone
+  (`AWARDED` → `FULFILLED`).
+- `assertSequentialAdvance(currentIndex, targetIndex, subject)` — the
+  generic "no skipping steps" rule shared by escrow milestones and (once
+  wired up) shipment transport stages.
+
+This is a deliberately small first step toward the full workflow engine
+described in the Product Vision (Inquiry → RFQ → Negotiation → Contract →
+Production → Warehouse → Pickup → Export Customs → Shipping → Import
+Customs → Delivery → Payment) — today's implementation only covers the
+slice that's actually wired to a table (`rfqs.status`, `escrow_milestones`).
+Negotiation, Contract, and Production/Warehouse stages have no table and no
+route yet; extending this module — not inventing a parallel state
+representation — is how they should land.
 
 ## Multi-tenancy model
 
@@ -103,9 +152,9 @@ in two layers, not one:
 
 1. **Row Level Security (RLS)** at the Postgres level — the last line of
    defense, so a bug in application code cannot leak cross-tenant data.
-2. **Application-level authorization** — RBAC checks in `lib/auth/` before a
-   query is even issued, so users get a clean 403 instead of an empty result
-   set caused by RLS silently filtering rows.
+2. **Application-level authorization** — RBAC checks in `core/identity/`
+   before a query is even issued, so users get a clean 403 instead of an
+   empty result set caused by RLS silently filtering rows.
 
 Never rely on RLS alone for UX (empty states from silently-filtered queries
 are confusing) and never rely on application checks alone for security

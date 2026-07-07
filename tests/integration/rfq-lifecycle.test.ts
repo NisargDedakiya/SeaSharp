@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // The route handlers call getSessionActor()/getSessionUser() from
-// @/lib/session, which reads a signed cookie via next/headers — not
+// @/core/identity/session, which reads a signed cookie via next/headers — not
 // meaningful in a direct route-handler-function-call test. Mocking the
 // module lets each request simulate being signed in as a different
 // organization without running real cookie-based auth end to end.
@@ -11,10 +11,10 @@ type MockActor = {
 } | null;
 let mockActor: MockActor = null;
 
-// Deliberately not spreading the real module's exports: @/lib/session
+// Deliberately not spreading the real module's exports: @/core/identity/session
 // imports next/headers's cookies(), which only works inside a real Next.js
 // server request context, not a bare route-handler-function-call test.
-vi.mock("@/lib/session", () => ({
+vi.mock("@/core/identity/session", () => ({
   getSessionActor: vi.fn(() => Promise.resolve(mockActor)),
   getSessionUser: vi.fn(() => Promise.resolve(mockActor?.user ?? null)),
 }));

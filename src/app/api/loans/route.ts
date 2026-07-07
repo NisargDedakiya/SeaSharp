@@ -4,8 +4,9 @@ import { eq, desc } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { rfqs, escrowAccounts, shipments, tradeLoans } from "@/db/schema";
-import { scoreLoanRequest } from "@/lib/creditlayer";
-import { getSessionActor } from "@/lib/session";
+import { scoreLoanRequest } from "@/core/ai/credit-ai";
+import { getSessionActor } from "@/core/identity/session";
+import { emit } from "@/core/events";
 
 const loanSchema = z.object({
   rfqId: z.string(),
@@ -69,6 +70,17 @@ export const POST = withApiHandler(async (request: Request) => {
       status: decision.approved ? "APPROVED" : "REJECTED",
     })
     .returning();
+
+  await emit({
+    type: "LOAN_DECIDED",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: {
+      loanId: loan.id,
+      approved: decision.approved,
+      recipientProfileIds: [actor.user.id],
+    },
+  });
 
   return NextResponse.json(
     {

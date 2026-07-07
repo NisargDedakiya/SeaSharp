@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionActor } from "@/lib/session";
+import { getSessionActor } from "@/core/identity/session";
 import { NewRfqForm } from "./NewRfqForm";
 
 export default async function NewRfqPage() {

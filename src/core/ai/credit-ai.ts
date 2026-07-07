@@ -1,4 +1,4 @@
-import { tierForScore, type StsTier } from "@/lib/sts";
+import { tierForScore, type StsTier } from "@/core/finance/sts";
 
 export type LoanDecision = {
   approved: boolean;

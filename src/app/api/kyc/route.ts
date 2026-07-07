@@ -3,9 +3,10 @@ import { eq } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { organizations, profiles } from "@/db/schema";
-import { runSupplierCheck } from "@/lib/supplierradar";
-import { recalculateAndSaveSts } from "@/lib/sts-server";
-import { getSessionActor } from "@/lib/session";
+import { runSupplierCheck } from "@/core/ai/compliance-ai";
+import { recalculateAndSaveSts } from "@/core/finance/sts-server";
+import { getSessionActor } from "@/core/identity/session";
+import { emit } from "@/core/events";
 
 export const POST = withApiHandler(async () => {
   const actor = await getSessionActor();
@@ -31,6 +32,13 @@ export const POST = withApiHandler(async () => {
   if (actor.organization.type === "EXPORTER") {
     await recalculateAndSaveSts(actor.organization.id);
   }
+
+  await emit({
+    type: kycStatus === "VERIFIED" ? "KYC_VERIFIED" : "KYC_PENDING",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: { kycStatus, flags: check.flags, recipientProfileIds: [actor.user.id] },
+  });
 
   return NextResponse.json({ kycStatus, flags: check.flags });
 });

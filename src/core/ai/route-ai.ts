@@ -14,10 +14,12 @@ const BASE_HANDLING_FEE: Record<FreightMode, number> = {
   ROAD: 80,
 };
 
-// RouteIQ stub: a production model would optimize on historical shipment
-// data, carrier performance, and live market conditions (spec section 06).
-// Phase 1 ships static heuristics: sea freight for bulk agri-commodity
-// volumes, air freight only recommended for small/urgent loads.
+// RouteAI stub: a production model would optimize on historical shipment
+// data, carrier performance, and live market conditions. Ships static
+// heuristics today — sea freight for bulk agri-commodity volumes, air
+// freight only recommended for small/urgent loads. The Logistics Engine
+// (src/core/logistics/) calls this for a recommendation; it never decides
+// anything on its own.
 export function recommendRoute(params: {
   volume: number;
   originLocation: string;
@@ -33,11 +35,3 @@ export function recommendRoute(params: {
 
   return { mode, estimatedCost, recommendation };
 }
-
-export const ESCROW_MILESTONES = [
-  "Order Confirmed & Escrow Funded",
-  "Goods Picked Up from Exporter Warehouse",
-  "Customs Cleared",
-  "Delivered to Importer",
-  "Escrow Released",
-] as const;

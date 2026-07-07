@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiHandler } from "@/lib/api-handler";
-import { signInWithPassword, signSessionToken, SESSION_COOKIE } from "@/lib/auth/adapter";
+import { signInWithPassword, signSessionToken, SESSION_COOKIE } from "@/core/identity/adapter";
 
 const loginSchema = z.object({
   email: z.string().email(),

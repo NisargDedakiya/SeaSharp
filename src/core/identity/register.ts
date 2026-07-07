@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { eq, and, isNull } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
 import { authUsers, profiles, organizations, roles, organizationMembers } from "@/db/schema";
-import type { OrganizationType } from "@/lib/organizations";
+import type { OrganizationType } from "@/core/identity/organizations";
 import { AppError } from "@/lib/api-handler";
 
 /**

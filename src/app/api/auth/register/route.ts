@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiHandler } from "@/lib/api-handler";
-import { registerUserAndOrganization } from "@/lib/auth/register";
-import { signSessionToken, SESSION_COOKIE } from "@/lib/auth/adapter";
+import { registerUserAndOrganization } from "@/core/identity/register";
+import { signSessionToken, SESSION_COOKIE } from "@/core/identity/adapter";
 import type { organizationTypeEnum } from "@/db/schema";
 
 const registerSchema = z.object({

@@ -4,19 +4,15 @@ import { eq, and } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { rfqs, bids } from "@/db/schema";
-import { getSessionActor } from "@/lib/session";
+import { getSessionActor } from "@/core/identity/session";
+import { suggestBidPrice } from "@/core/ai/market-ai";
+import { getOrganizationMemberProfileIds } from "@/core/identity/organizations";
+import { emit } from "@/core/events";
 
 const bidSchema = z.object({
   pricePerUnit: z.coerce.number().positive(),
   message: z.string().max(1000).optional(),
 });
-
-// BidSense stub: a real model would rank historical winning bids by product,
-// season, and volume. Until that training data exists, suggest a price just
-// under the buyer's stated target — directionally useful, cheap to compute.
-function suggestBidPrice(targetPricePerUnit: number) {
-  return Math.round(targetPricePerUnit * 0.97 * 100) / 100;
-}
 
 export const POST = withApiHandler<{ id: string }>(async (request, { params }) => {
   const actor = await getSessionActor();
@@ -60,6 +56,19 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
           aiSuggestedPrice: aiSuggestedPrice.toString(),
         })
         .returning();
+
+  const importerProfileIds = await getOrganizationMemberProfileIds(rfq.organizationId);
+  await emit({
+    type: "BID_SUBMITTED",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: {
+      rfqId: rfq.id,
+      bidId: bid.id,
+      pricePerUnit: Number(bid.pricePerUnit),
+      recipientProfileIds: importerProfileIds,
+    },
+  });
 
   return NextResponse.json(
     {

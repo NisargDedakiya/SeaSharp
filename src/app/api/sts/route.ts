@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { tierForScore } from "@/lib/sts";
-import { recalculateAndSaveSts } from "@/lib/sts-server";
-import { getSessionActor } from "@/lib/session";
+import { tierForScore } from "@/core/finance/sts";
+import { recalculateAndSaveSts } from "@/core/finance/sts-server";
+import { getSessionActor } from "@/core/identity/session";
 
 export const GET = withApiHandler(async () => {
   const actor = await getSessionActor();

@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
 import { profiles, organizationMembers, organizations, roles } from "@/db/schema";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth/adapter";
+import { SESSION_COOKIE, verifySessionToken } from "@/core/identity/adapter";
 
 export type SessionUser = { id: string; email: string; fullName: string };
 

@@ -6,7 +6,7 @@ import {
   findHsCodeMatches,
   getComplianceChecklist,
   getTariffRule,
-} from "@/lib/compliance";
+} from "@/core/trade/intelligence";
 
 const lookupSchema = z.object({
   product: z.string().min(2),

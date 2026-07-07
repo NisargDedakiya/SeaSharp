@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateStsScore, tierForScore, STS_WEIGHTS } from "@/lib/sts";
+import { calculateStsScore, tierForScore, STS_WEIGHTS } from "@/core/finance/sts";
 
 describe("calculateStsScore", () => {
   it("gives a brand-new exporter the neutral half-credit baseline on delivery/escrow/loan, full marks on disputes", () => {

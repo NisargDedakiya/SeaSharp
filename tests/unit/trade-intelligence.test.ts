@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateLandedCost } from "@/lib/compliance";
+import { calculateLandedCost } from "@/core/trade/intelligence";
 
 describe("calculateLandedCost", () => {
   it("computes tariff, additional fees, and total landed cost", () => {

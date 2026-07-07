@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recommendRoute } from "@/lib/logistics";
+import { recommendRoute } from "@/core/ai/route-ai";
 
 describe("recommendRoute", () => {
   it("recommends sea freight for bulk volumes", () => {

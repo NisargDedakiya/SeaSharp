@@ -3,8 +3,11 @@ import { eq, asc } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
 import { serviceDb } from "@/db/client";
 import { escrowAccounts, escrowMilestones, rfqs, shipments } from "@/db/schema";
-import { recalculateAndSaveSts } from "@/lib/sts-server";
-import { getSessionActor } from "@/lib/session";
+import { recalculateAndSaveSts } from "@/core/finance/sts-server";
+import { getSessionActor } from "@/core/identity/session";
+import { getOrganizationMemberProfileIds } from "@/core/identity/organizations";
+import { assertRfqTransition, assertSequentialAdvance } from "@/core/workflow/trade-workflow";
+import { emit } from "@/core/events";
 
 // Advances escrow to the next pending milestone. Funds only move at
 // verified logistics milestones (spec section 05, Pillar B) — this endpoint
@@ -41,10 +44,16 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
   if (!nextMilestone) {
     throw new AppError(409, "All milestones are already complete.");
   }
+  const completedCount = milestones.filter((m) => m.status === "COMPLETE").length;
+  assertSequentialAdvance(completedCount, nextMilestone.sequence + 1, "escrow milestone");
 
   const isFinalMilestone = nextMilestone.sequence === milestones.length - 1;
   const isDeliveryMilestone = nextMilestone.sequence === milestones.length - 2;
   const isCustomsMilestone = nextMilestone.sequence === milestones.length - 3;
+
+  if (isFinalMilestone) {
+    assertRfqTransition(rfq.status, "FULFILLED");
+  }
 
   await serviceDb.transaction(async (tx) => {
     await tx
@@ -87,6 +96,33 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
 
   if (isFinalMilestone && shipment) {
     await recalculateAndSaveSts(shipment.exporterOrganizationId);
+  }
+
+  const participantProfileIds = shipment
+    ? [
+        ...(await getOrganizationMemberProfileIds(rfq.organizationId)),
+        ...(await getOrganizationMemberProfileIds(shipment.exporterOrganizationId)),
+      ]
+    : await getOrganizationMemberProfileIds(rfq.organizationId);
+
+  await emit({
+    type: "ESCROW_MILESTONE_RELEASED",
+    organizationId: actor.organization.id,
+    actorProfileId: actor.user.id,
+    payload: {
+      escrowId: escrow.id,
+      milestoneName: nextMilestone.name,
+      recipientProfileIds: participantProfileIds,
+    },
+  });
+
+  if (isFinalMilestone) {
+    await emit({
+      type: "SHIPMENT_DELIVERED",
+      organizationId: actor.organization.id,
+      actorProfileId: actor.user.id,
+      payload: { rfqId: rfq.id, escrowId: escrow.id, recipientProfileIds: participantProfileIds },
+    });
   }
 
   const updatedEscrow = await serviceDb.query.escrowAccounts.findFirst({

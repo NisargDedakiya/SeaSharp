@@ -1,4 +1,4 @@
-import { tierForScore, STS_TIER_LABELS } from "@/lib/sts";
+import { tierForScore, STS_TIER_LABELS } from "@/core/finance/sts";
 
 const TIER_COLORS: Record<string, string> = {
   NEW: "bg-slate-700 text-slate-200",
