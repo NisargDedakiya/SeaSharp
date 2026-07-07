@@ -1,5 +1,9 @@
 # SeaSharp — The Global Trade Infrastructure Platform
 
+> **Docs**: see [`docs/`](./docs/README.md) for the full v2.0 product/technical
+> "constitution" (vision, PRD, architecture, database design, design system,
+> API spec) that this Phase 1 MVP is the foundation for.
+
 Phase 1 MVP implementation of the SeaSharp product vision: an RFQ marketplace,
 compliance/trade-route intelligence, logistics estimation, and PO-backed trade
 finance in one closed-loop platform, built as the foundation for a broader
