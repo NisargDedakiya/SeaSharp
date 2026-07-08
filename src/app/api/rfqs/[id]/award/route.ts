@@ -9,6 +9,7 @@ import { getRouteRecommendation } from "@/core/logistics";
 import { getSessionActor } from "@/core/identity/session";
 import { getOrganizationMemberProfileIds } from "@/core/identity/organizations";
 import { assertRfqTransition } from "@/core/workflow/trade-workflow";
+import { advanceInTx, emitTransition } from "@/core/workflow/engine";
 import { emit } from "@/core/events";
 
 const awardSchema = z.object({ bidId: z.string() });
@@ -58,8 +59,19 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
     destinationLocation: rfq.destinationCountry,
   });
 
-  const { escrow, shipment } = await serviceDb.transaction(async (tx) => {
+  const { escrow, shipment, transition } = await serviceDb.transaction(async (tx) => {
     await tx.update(rfqs).set({ status: "AWARDED", awardedBidId: winningBid.id }).where(eq(rfqs.id, rfq.id));
+
+    // Single source of truth for "where is this trade": the workflow engine
+    // (src/core/workflow/engine.ts) validates and records this same OPEN ->
+    // AWARDED move that assertRfqTransition already checked above, folded
+    // into this same transaction as the rfqs.status flip.
+    const workflowTransition = await advanceInTx(tx, {
+      rfqId: rfq.id,
+      organizationId: rfq.organizationId,
+      toNode: "AWARDED",
+      actorProfileId: actor.user.id,
+    });
 
     await tx.update(bids).set({ status: "ACCEPTED" }).where(eq(bids.id, winningBid.id));
     await tx
@@ -103,7 +115,7 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
       })
       .returning();
 
-    return { escrow: createdEscrow, shipment: createdShipment };
+    return { escrow: createdEscrow, shipment: createdShipment, transition: workflowTransition };
   });
 
   const exporterProfileIds = await getOrganizationMemberProfileIds(winningBid.organizationId);
@@ -117,6 +129,9 @@ export const POST = withApiHandler<{ id: string }>(async (request, { params }) =
       escrowId: escrow.id,
       recipientProfileIds: exporterProfileIds,
     },
+  });
+  await emitTransition(transition, { organizationId: actor.organization.id, profileId: actor.user.id }, {
+    recipientProfileIds: exporterProfileIds,
   });
 
   return NextResponse.json(

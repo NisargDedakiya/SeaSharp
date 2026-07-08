@@ -178,6 +178,53 @@ silently "self-heals").
 `interest_rate_percent`, `risk_band`, `status enum (requested, approved,
 rejected, disbursed, repaying, repaid, defaulted)`.
 
+## Workflow domain
+
+The unified engine (`src/core/workflow/engine.ts`) — the single source of
+truth for "where is this trade right now," instead of `rfqs.status`,
+`escrow_milestones`, and `shipments.transport_stage` each independently
+tracking a slice of it (those columns are still written directly by their
+own routes today for backward-compat/other-query reasons; the workflow
+tables are the cross-cutting view over all of them).
+
+### `workflow_definitions`
+| Column | Type | Notes |
+|---|---|---|
+| `name` | text | e.g. `trade-lifecycle` |
+| `version` | integer | unique with `name` |
+| `graph` | jsonb | `Record<node, node[]>` of allowed next nodes — the same shape `RFQ_TRANSITIONS` used in `trade-workflow.ts`, generalized |
+
+Reference-like data: open-read to `authenticated`, writable only by
+`service_role` (same treatment as `countries`/`hs_codes`/`tariffs`) — see
+`drizzle/manual/08_workflow_rls.sql`.
+
+### `workflow_instances`
+| Column | Type | Notes |
+|---|---|---|
+| `workflow_definition_id` | uuid | FK → `workflow_definitions.id` |
+| `rfq_id` | uuid unique | FK → `rfqs.id`; one instance per trade |
+| `organization_id` | uuid | FK, for RLS |
+| `current_node` | text | validated against the definition's `graph` on every `advanceInTx()` call |
+
+### `workflow_history`
+| Column | Type | Notes |
+|---|---|---|
+| `workflow_instance_id` | uuid | FK → `workflow_instances.id`, cascade delete |
+| `organization_id` | uuid | FK, for RLS |
+| `from_node` / `to_node` | text | |
+| `actor_profile_id` | uuid nullable | |
+| `metadata` | jsonb nullable | |
+
+Immutable per-transition record — no application role has `UPDATE`/`DELETE`
+on this table, same discipline as `audit_logs`. There is no separate
+`workflow_events` table: every `advanceInTx()` call is followed by
+`emitTransition()`, which emits a `WORKFLOW_TRANSITIONED` domain event into
+the already-existing `domain_events` table — a workflow transition already
+*is* a domain event, so a second event-writing path would just be
+`domain_events` duplicated with fewer columns. `workflow_history` is the
+fast, workflow-instance-scoped read model; `domain_events` remains the
+cross-domain log every subscriber (audit log, notifications) already reads.
+
 ## AI domain
 
 `ai_predictions` (generic: `service_name, input jsonb, output jsonb,

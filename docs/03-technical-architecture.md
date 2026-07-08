@@ -103,7 +103,8 @@ Every business action a route handler completes emits a domain event via
 `src/core/events`'s `emit()` — see `src/core/events/types.ts` for the
 current catalog (`RFQ_CREATED`, `BID_SUBMITTED`, `RFQ_AWARDED`,
 `ESCROW_MILESTONE_RELEASED`, `SHIPMENT_DELIVERED`, `KYC_VERIFIED`,
-`KYC_PENDING`, `LOAN_DECIDED`). `emit()` does two things, always:
+`KYC_PENDING`, `LOAN_DECIDED`, `WORKFLOW_TRANSITIONED`). `emit()` does two
+things, always:
 
 1. Persists the event to the `domain_events` table (an append-only log —
    this is the record future analytics/AI training pipelines read from).
@@ -125,25 +126,49 @@ that already succeeded.
 
 ## Workflow engine
 
-`src/core/workflow/trade-workflow.ts` centralizes transition rules that were
-previously (Phase 1) re-derived inline in each route:
+`src/core/workflow/engine.ts` is the single source of truth for "where is
+this trade right now," replacing the three independent state fields
+(`rfqs.status`, `escrow_milestones`, `shipments.transportStage`) that used to
+each own their own slice with no unified instance:
 
-- `assertRfqTransition(from, to)` — the RFQ status graph (`OPEN` →
-  `AWARDED`/`CANCELLED`, `AWARDED` → `FULFILLED`). Called by the award route
-  (`OPEN` → `AWARDED`) and the escrow release route's final milestone
-  (`AWARDED` → `FULFILLED`).
-- `assertSequentialAdvance(currentIndex, targetIndex, subject)` — the
-  generic "no skipping steps" rule shared by escrow milestones and (once
-  wired up) shipment transport stages.
+- `workflow_definitions` — named, versioned transition graphs (currently one:
+  `trade-lifecycle` v1), stored as the same `Record<node, node[]>` shape
+  `RFQ_TRANSITIONS` already used, just generalized and persisted instead of
+  hardcoded per-caller.
+- `workflow_instances` — one row per in-flight trade (keyed on `rfq_id`),
+  pointing at a definition and holding `current_node`.
+- `workflow_history` — an immutable row per transition (`from_node`,
+  `to_node`, actor, metadata) — the durable read-model the Task 2 audit
+  timeline is built on. There is no separate `workflow_events` table: a
+  transition already emits a `WORKFLOW_TRANSITIONED` domain event via
+  `src/core/events`'s `emit()` (see `src/db/schema/workflow.ts` for why that
+  collapse is deliberate, not an oversight).
 
-This is a deliberately small first step toward the full workflow engine
-described in the Product Vision (Inquiry → RFQ → Negotiation → Contract →
-Production → Warehouse → Pickup → Export Customs → Shipping → Import
-Customs → Delivery → Payment) — today's implementation only covers the
-slice that's actually wired to a table (`rfqs.status`, `escrow_milestones`).
-Negotiation, Contract, and Production/Warehouse stages have no table and no
-route yet; extending this module — not inventing a parallel state
-representation — is how they should land.
+`engine.ts#advanceInTx(tx, params)` validates the move against the
+definition's graph (via `trade-workflow.ts`'s `assertTransition()`, unchanged
+and reused, not reimplemented), updates `workflow_instances.currentNode`, and
+writes the `workflow_history` row — all inside the caller's existing
+`serviceDb.transaction()`, so it commits atomically with `rfqs.status`,
+`escrow_milestones`, and `shipments` writes rather than opening a second
+transaction. `emitTransition()` fires the domain event once that transaction
+has committed, mirroring how the award/release routes already call `emit()`
+only after their own transaction resolves.
+
+The graph models the full lifecycle from the Product Vision (`INQUIRY` →
+`OPEN` → `NEGOTIATION` → `CONTRACT` → `AWARDED` → `PRODUCTION` → `WAREHOUSE`
+→ `PICKUP` → `EXPORT_CUSTOMS` → `SHIPPING` → `IMPORT_CUSTOMS` →
+`CUSTOMS_CLEARED` → `DELIVERY` → `PAYMENT` → `FULFILLED`), plus the direct
+shortcuts today's code actually takes where an intermediate stage has no
+table/route yet (`OPEN` → `AWARDED`, `AWARDED` → `PICKUP`, `DELIVERY` →
+`FULFILLED`) — see `TRADE_LIFECYCLE_GRAPH`'s comments in `engine.ts`.
+Negotiation, Contract, and Production/Warehouse still have no table/route;
+wiring them up is calling `advanceInTx()` with the finer-grained node, not
+inventing a new representation.
+
+`src/core/workflow/trade-workflow.ts`'s `assertRfqTransition` and
+`assertSequentialAdvance` remain as thin, independently-testable wrappers
+around the same rule for callers that only care about the RFQ-status or
+sequential-index slice.
 
 ## Multi-tenancy model
 
