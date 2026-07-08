@@ -115,6 +115,91 @@ need the same bearer-key auth and rate limiting as every other externally
 exposed endpoint — nothing about it is safe to expose unauthenticated today,
 since the payloads can carry internal ids/organization details.
 
+## Shipped: search endpoint
+
+Also a real, shipped, unversioned route (Task 4) —
+`src/app/api/search/route.ts`, backed by the dispatcher in
+`src/core/search/index.ts`. Postgres-native full-text search (`tsvector` +
+GIN expression indexes, `drizzle/0005_search_fts.sql`) — no Elasticsearch/
+Algolia, consistent with this project's "no new infra before it's needed"
+approach elsewhere in the codebase.
+
+**`GET /api/search?type=<entityType>&q=<query>&filters=<json>`**
+
+- **Auth**: optional. Anonymous callers get public-only results (e.g. only
+  `OPEN` RFQs); a signed-in caller's `organizationId` (via
+  `getSessionActor()`) additionally surfaces their own org's non-public rows
+  (e.g. their own `AWARDED`/`CANCELLED` RFQs). Rate-limited (60 req/min/IP).
+- **`type`**: required, one of the full entity-type union —
+  `hscodes`, `rfqs` (real, query hits Postgres), or
+  `companies`, `products`, `ports`, `warehouses`, `documents` (stubbed —
+  always return `results: []`; no schema/data or search UX for these yet,
+  see `src/core/search/stubs.ts`). Anything else is a 400 (Zod enum).
+- **`q`**: required, non-empty string.
+- **`filters`**: optional, JSON-object-encoded query param. `hscodes`
+  supports `{ "category": "..." }`; `rfqs` supports `{ "status": "OPEN" |
+  "AWARDED" | "CANCELLED" | "FULFILLED" }`. Unrecognized keys are ignored
+  rather than rejected.
+- **Response**: `{ type, query, results: SearchResult[] }`, where
+  `SearchResult` is `{ entityType, id, title, subtitle?, url? }`, ranked by
+  Postgres `ts_rank` (best match first), capped at 20 rows.
+
+Example (real — hscodes):
+
+```
+GET /api/search?type=hscodes&q=electric
+```
+
+```json
+{
+  "type": "hscodes",
+  "query": "electric",
+  "results": [
+    { "entityType": "hscodes", "id": "850110", "title": "850110", "subtitle": "Electric motors (Machinery)" }
+  ]
+}
+```
+
+Example (real — rfqs):
+
+```
+GET /api/search?type=rfqs&q=widgets
+```
+
+```json
+{
+  "type": "rfqs",
+  "query": "widgets",
+  "results": [
+    { "entityType": "rfqs", "id": "bac007ce-...", "title": "Widgets", "subtitle": "HS 850110 · AWARDED", "url": "/marketplace/bac007ce-..." }
+  ]
+}
+```
+
+Example (stubbed — companies):
+
+```
+GET /api/search?type=companies&q=acme
+```
+
+```json
+{ "type": "companies", "query": "acme", "results": [] }
+```
+
+Indexed fields today: `hs_codes(code, description, category)` and
+`rfqs(product, hs_code)` — RFQs have no separate title/description field,
+only `product`, so that's the entirety of their free-text surface. A global
+`Cmd+K` command-palette UI (`src/components/SearchPalette.tsx`, wired into
+`Navbar.tsx`) calls this endpoint client-side, grouped by entity type.
+
+Not yet exposed through the public API Platform (Phase 4+, see below) — if
+it is, it should get the same bearer-key auth and rate limiting as every
+other externally-exposed endpoint, and the stubbed entity types should
+either be documented as perpetually-empty or removed from the union at that
+boundary rather than silently returning `[]` forever. Also worth revisiting
+for Task 5's dashboard, which may want a compact search widget reusing
+`searchAll()` from `src/core/search/index.ts` instead of the full palette.
+
 ## Webhooks
 
 ### Inbound (third parties → SeaSharp)

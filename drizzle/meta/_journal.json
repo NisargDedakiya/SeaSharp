@@ -36,6 +36,13 @@
       "when": 1783525453516,
       "tag": "0004_audit_timeline_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783609200000,
+      "tag": "0005_search_fts",
+      "breakpoints": true
     }
   ]
 }

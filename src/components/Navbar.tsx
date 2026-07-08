@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import type { SessionUser } from "@/core/identity/session";
+import { SearchPalette } from "@/components/SearchPalette";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -48,6 +49,7 @@ export function Navbar({ user }: { user: SessionUser | null }) {
         </div>
 
         <div className="flex items-center gap-3">
+          <SearchPalette />
           {user ? (
             <>
               <span className="hidden text-sm text-slate-400 sm:inline">{user.fullName}</span>
