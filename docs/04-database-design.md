@@ -33,6 +33,11 @@ gen_random_uuid()`, `created_at timestamptz default now()`, and
 
 ### `profiles`
 Extends Supabase Auth's `auth.users` with app-specific fields (1:1 on `id`).
+Against a real Supabase project, `auth.users` is the actual GoTrue-owned
+table in that project's Postgres (not a mirror in this repo's schema) — see
+`src/db/schema/identity.ts`'s comment on `authUsers` and
+`src/core/identity/adapter.ts`'s header comment for why `profiles.id` needs
+no migration to point at it.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | FK → `auth.users.id` |

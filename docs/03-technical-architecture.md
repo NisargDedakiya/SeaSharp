@@ -14,7 +14,7 @@
 | Backend | Next.js API Routes (Route Handlers) | Supabase Edge Functions only where a workload needs to run outside the Next.js request lifecycle (e.g. scheduled jobs, webhook fan-out) |
 | Database | Supabase PostgreSQL | See [Database Design](./04-database-design.md) |
 | ORM | Drizzle ORM | Chosen over Prisma/raw Supabase client for type-safe schema-as-code and zero runtime codegen step |
-| Auth | Supabase Auth | Email/password at launch; OAuth providers and MFA are additive, not blocking |
+| Auth | Supabase Auth | Email/password at launch; OAuth providers and MFA are additive, not blocking. **Migrated in code** (`src/core/identity/adapter.ts` now calls `@supabase/supabase-js`'s `signUp`/`signInWithPassword`/`signOut`, plus new `verify-email`/`reset-password`/`forgot-password` routes) — **not yet verified against a live Supabase project**, since this environment has no Supabase credentials. Falls back to the original local bcrypt+JWT adapter when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` aren't set, so local dev/CI don't need live credentials either. See [top-level README § Why not real Supabase here](../README.md#why-not-real-supabase-here) |
 | Storage | Supabase Storage | Buckets: `company-documents`, `trade-documents`, `shipment-files`, `contracts`, `certificates`, `user-avatars`, `logos`, `attachments` |
 | Realtime | Supabase Realtime | RFQ updates, shipment tracking, notifications, chat, live dashboard widgets |
 | Payments | Stripe | Escrow and wallet funding events are Stripe webhook-driven, never client-confirmed |

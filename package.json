@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.63.0",
+    "@supabase/supabase-js": "^2.110.1",
     "bcryptjs": "^3.0.3",
     "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.42.2",
