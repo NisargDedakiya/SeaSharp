@@ -2,6 +2,7 @@ import "server-only";
 import { serviceDb } from "@/db/client";
 import { auditLogs } from "@/db/schema";
 import { notify } from "@/core/notifications/service";
+import { deliverWebhooksForEvent } from "@/core/api-platform/webhooks";
 import { subscribe } from "./bus";
 import type { DomainEvent } from "./types";
 
@@ -26,6 +27,16 @@ subscribe(async (event: DomainEvent) => {
   await Promise.all(
     recipients.map((profileId) => notify({ profileId, type: event.type, payload: event.payload }))
   );
+});
+
+// Task 6's Public API Platform: fires outbound webhooks for every event
+// that has an organization, to every one of that org's active endpoints
+// subscribed to the event's type — see src/core/api-platform/webhooks.ts
+// for the single-best-effort-attempt delivery semantics and why there's no
+// retry queue here. Same "every event becomes an X" shape as the audit-log
+// and notification subscribers above.
+subscribe(async (event: DomainEvent) => {
+  await deliverWebhooksForEvent(event);
 });
 
 function extractRecipients(payload: Record<string, unknown>): string[] {

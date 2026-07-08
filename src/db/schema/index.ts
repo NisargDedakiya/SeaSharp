@@ -10,3 +10,4 @@ export * from "./notifications";
 export * from "./events";
 export * from "./workflow";
 export * from "./dashboard";
+export * from "./api-platform";

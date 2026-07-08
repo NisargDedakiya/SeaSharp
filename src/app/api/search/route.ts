@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiHandler } from "@/lib/api-handler";
-import { getSessionActor } from "@/core/identity/session";
+import { getRequestActor } from "@/core/identity/session";
 import { search, SEARCH_ENTITY_TYPES } from "@/core/search";
 
 const querySchema = z.object({
@@ -38,8 +38,13 @@ export const GET = withApiHandler(
     });
 
     // Best-effort actor lookup: search works for anonymous callers (results
-    // scoped to public data only), same as the marketplace listing.
-    const actor = await getSessionActor().catch(() => null);
+    // scoped to public data only), same as the marketplace listing. Also
+    // the first route in this codebase reachable via API key
+    // (`Authorization: Bearer sk_live_...`) — see
+    // src/core/identity/session.ts#getRequestActor and
+    // docs/06-api-integration-spec.md for why this endpoint was chosen and
+    // /api/audit/... was not (yet).
+    const actor = await getRequestActor(request).catch(() => null);
 
     const results = await search(type, q, filters, { organizationId: actor?.organization.id ?? null });
     return NextResponse.json({ type, query: q, results });

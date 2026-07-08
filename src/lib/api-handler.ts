@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
-import { clientIpFromRequest, rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit";
 
 // Expected, user-facing failures (not found, forbidden, conflict, etc.).
 // Route handlers throw this instead of manually constructing a NextResponse,
@@ -43,10 +43,12 @@ export function withApiHandler<Params = Record<string, string>>(
 
     try {
       if (options?.rateLimit) {
-        const ip = clientIpFromRequest(request);
-        const result = rateLimit(`${path}:${ip}`, options.rateLimit.limit, options.rateLimit.windowMs);
+        // Keyed by API-key prefix when the caller authenticates with a
+        // bearer key, IP otherwise — see rate-limit.ts#rateLimitKeyFromRequest.
+        const rateLimitKey = rateLimitKeyFromRequest(request);
+        const result = rateLimit(`${path}:${rateLimitKey}`, options.rateLimit.limit, options.rateLimit.windowMs);
         if (!result.success) {
-          log.warn({ ip }, "rate limit exceeded");
+          log.warn({ rateLimitKey }, "rate limit exceeded");
           return NextResponse.json(
             { error: "Too many requests. Please try again later." },
             {
