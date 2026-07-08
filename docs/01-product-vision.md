@@ -116,3 +116,31 @@ roles, get verified, post or bid on an RFQ, negotiate and sign a contract,
 track the shipment door-to-door, move payment through escrow or trade
 finance, and see all of it — documents, messages, milestones, money — in one
 activity feed. No email required.
+
+## Future Scope (explicitly deferred)
+
+These are real, considered ideas — not omissions — each deferred because
+building them now would be speculative rather than demand-driven. Listed with
+the trigger that would justify starting each one.
+
+- **Multi-language support** — defer until the first non-English-speaking
+  cohort of exporters/importers is actively onboarding.
+- **Multi-currency support** — defer until the first non-INR/AED transaction
+  is requested by a real user.
+- **Incoterms assistant** — a natural extension of `src/core/trade/intelligence.ts`;
+  build once compliance-checker usage data shows demand for it.
+- **Trade agreement explorer** (India-UAE CEPA, etc.) — pairs with the
+  compliance AI module; defer until the compliance checker itself has real
+  usage to extend.
+- **Sanctions screening** — must precede any real-money escrow release at
+  scale. This is a pre-launch compliance requirement, not a "nice to have,"
+  once real Supabase Auth and real payments are live.
+- **Container booking** — Phase 3 logistics; depends on a real freight API
+  integration replacing the `src/integrations/freight/` stub.
+- **Digital document vault** — depends on Supabase Storage, which is listed
+  as target-only in `docs/README.md`'s gap table.
+- **Organization analytics** — a natural dashboard widget (see Task 5's
+  widget system) once there's enough transaction volume to analyze.
+- **AI-powered document review** — extends `src/core/ai/compliance-ai.ts`.
+- **Customs timeline visualization** — a specialized view of the audit
+  timeline (`src/core/audit/timeline.ts`), filtered to customs-stage events.
