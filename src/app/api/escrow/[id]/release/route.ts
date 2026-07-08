@@ -7,6 +7,7 @@ import { recalculateAndSaveSts } from "@/core/finance/sts-server";
 import { getSessionActor } from "@/core/identity/session";
 import { getOrganizationMemberProfileIds } from "@/core/identity/organizations";
 import { assertRfqTransition, assertSequentialAdvance } from "@/core/workflow/trade-workflow";
+import { advanceInTx, emitTransition } from "@/core/workflow/engine";
 import { emit } from "@/core/events";
 
 // Advances escrow to the next pending milestone. Funds only move at
@@ -55,7 +56,19 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
     assertRfqTransition(rfq.status, "FULFILLED");
   }
 
-  await serviceDb.transaction(async (tx) => {
+  // Maps each escrow milestone onto the corresponding workflow_instances
+  // node (src/core/workflow/engine.ts's TRADE_LIFECYCLE_GRAPH). Milestone 0
+  // ("Order Confirmed & Escrow Funded") has no entry here — it's the AWARDED
+  // transition already recorded by award/route.ts.
+  const MILESTONE_WORKFLOW_NODES: Record<string, string> = {
+    "Goods Picked Up from Exporter Warehouse": "PICKUP",
+    "Customs Cleared": "CUSTOMS_CLEARED",
+    "Delivered to Importer": "DELIVERY",
+    "Escrow Released": "FULFILLED",
+  };
+  const targetNode = MILESTONE_WORKFLOW_NODES[nextMilestone.name];
+
+  const transition = await serviceDb.transaction(async (tx) => {
     await tx
       .update(escrowMilestones)
       .set({ status: "COMPLETE", completedAt: new Date() })
@@ -92,6 +105,15 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
 
       await tx.update(rfqs).set({ status: "FULFILLED" }).where(eq(rfqs.id, rfq.id));
     }
+
+    if (!targetNode) return null;
+    return advanceInTx(tx, {
+      rfqId: rfq.id,
+      organizationId: rfq.organizationId,
+      toNode: targetNode,
+      actorProfileId: actor.user.id,
+      metadata: { milestoneName: nextMilestone.name },
+    });
   });
 
   if (isFinalMilestone && shipment) {
@@ -123,6 +145,14 @@ export const POST = withApiHandler<{ id: string }>(async (_request, { params }) 
       actorProfileId: actor.user.id,
       payload: { rfqId: rfq.id, escrowId: escrow.id, recipientProfileIds: participantProfileIds },
     });
+  }
+
+  if (transition) {
+    await emitTransition(
+      transition,
+      { organizationId: actor.organization.id, profileId: actor.user.id },
+      { recipientProfileIds: participantProfileIds }
+    );
   }
 
   const updatedEscrow = await serviceDb.query.escrowAccounts.findFirst({

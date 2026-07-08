@@ -1,16 +1,25 @@
 import "server-only";
-import bcrypt from "bcryptjs";
 import { eq, and, isNull } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
-import { authUsers, profiles, organizations, roles, organizationMembers } from "@/db/schema";
+import { profiles, organizations, roles, organizationMembers } from "@/db/schema";
 import type { OrganizationType } from "@/core/identity/organizations";
-import { AppError } from "@/lib/api-handler";
+import { createAuthIdentity, deleteAuthIdentity } from "@/core/identity/adapter";
 
 /**
- * The full registration flow: create the auth identity, its profile, and a
- * brand-new organization it owns — all in one transaction, so a failure
- * partway through never leaves an orphaned auth.users row with no profile
- * or organization. This is what src/app/api/auth/register/route.ts calls.
+ * The full registration flow: create the auth identity, then its profile
+ * and a brand-new organization it owns in one DB transaction.
+ *
+ * Historically this ran entirely inside one Postgres transaction, so a
+ * failure partway through never left an orphaned `auth.users` row. Now that
+ * the auth identity is created via `createAuthIdentity` — which, once a
+ * real Supabase project is configured, calls out to Supabase Auth over the
+ * network rather than inserting a row in this DB — it can no longer be part
+ * of the same Postgres transaction as the profile/organization insert.
+ * Instead: create the auth identity first, then run profile+org creation in
+ * a transaction, and best-effort compensate (delete the auth identity) if
+ * that transaction fails. See adapter.ts's `deleteAuthIdentity` for why this
+ * is "best-effort" rather than fully atomic. This is what
+ * src/app/api/auth/register/route.ts calls.
  */
 export async function registerUserAndOrganization(params: {
   email: string;
@@ -20,21 +29,31 @@ export async function registerUserAndOrganization(params: {
   organizationType: OrganizationType;
   country?: string;
 }): Promise<{ userId: string; email: string; organizationId: string }> {
-  const email = params.email.toLowerCase().trim();
+  const identity = await createAuthIdentity({
+    email: params.email,
+    password: params.password,
+    fullName: params.fullName,
+  });
 
+  try {
+    return await registerOrganizationForIdentity(identity, params);
+  } catch (err) {
+    await deleteAuthIdentity(identity.id);
+    throw err;
+  }
+}
+
+async function registerOrganizationForIdentity(
+  identity: { id: string; email: string },
+  params: {
+    fullName: string;
+    organizationName: string;
+    organizationType: OrganizationType;
+    country?: string;
+  }
+): Promise<{ userId: string; email: string; organizationId: string }> {
   return serviceDb.transaction(async (tx) => {
-    const existing = await tx.query.authUsers.findFirst({ where: eq(authUsers.email, email) });
-    if (existing) {
-      throw new AppError(409, "An account with that email already exists.");
-    }
-
-    const encryptedPassword = await bcrypt.hash(params.password, 10);
-    const [user] = await tx
-      .insert(authUsers)
-      .values({ email, encryptedPassword, emailConfirmedAt: new Date() })
-      .returning({ id: authUsers.id, email: authUsers.email });
-
-    await tx.insert(profiles).values({ id: user.id, fullName: params.fullName });
+    await tx.insert(profiles).values({ id: identity.id, fullName: params.fullName });
 
     const ownerRole = await tx.query.roles.findFirst({
       where: and(isNull(roles.organizationId), eq(roles.name, "Owner")),
@@ -67,10 +86,10 @@ export async function registerUserAndOrganization(params: {
 
     await tx.insert(organizationMembers).values({
       organizationId: org.id,
-      profileId: user.id,
+      profileId: identity.id,
       roleId: ownerRole.id,
     });
 
-    return { userId: user.id, email: user.email, organizationId: org.id };
+    return { userId: identity.id, email: identity.email, organizationId: org.id };
   });
 }

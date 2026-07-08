@@ -22,6 +22,41 @@
       "when": 1783426602124,
       "tag": "0002_domain_events",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783525043258,
+      "tag": "0003_workflow_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783525453516,
+      "tag": "0004_audit_timeline_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783609200000,
+      "tag": "0005_search_fts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783526698872,
+      "tag": "0006_illegal_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783527421127,
+      "tag": "0007_api_platform",
+      "breakpoints": true
     }
   ]
 }

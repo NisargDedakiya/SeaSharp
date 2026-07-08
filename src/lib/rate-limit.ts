@@ -54,3 +54,22 @@ export function clientIpFromRequest(request: Request): string {
   if (forwardedFor) return forwardedFor.split(",")[0].trim();
   return request.headers.get("x-real-ip") ?? "unknown";
 }
+
+// Task 6's Public API Platform: a bearer API key gets its own rate-limit
+// bucket keyed by the key's prefix (not the caller's IP), so a
+// server-to-server integrator's limit follows their key across whatever
+// egress IPs they call from, and so one API key's usage can't exhaust
+// another key's (or an anonymous caller's) IP-keyed bucket. Only the
+// prefix — never the secret — is used, and only a cheap string-prefix
+// check, no DB/bcrypt lookup, so computing a rate-limit key never costs a
+// database round trip. See src/core/api-platform/keys.ts#apiKeyPrefixFromAuthHeader.
+export function rateLimitKeyFromRequest(request: Request): string {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ") && authHeader.includes("sk_live_")) {
+    const token = authHeader.slice("Bearer ".length).trim();
+    const dot = token.indexOf(".");
+    const prefix = dot === -1 ? token : token.slice(0, dot);
+    return `apikey:${prefix}`;
+  }
+  return `ip:${clientIpFromRequest(request)}`;
+}

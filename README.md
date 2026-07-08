@@ -19,14 +19,18 @@ below.
 
 ## Stack
 
-- Next.js 14 (App Router) + TypeScript
+- Next.js 15 (App Router) + TypeScript
 - Tailwind CSS, `framer-motion`
 - **Postgres via Drizzle ORM**, with real Row Level Security — see
   [Row Level Security](#row-level-security) below
-- A local Supabase-Auth-compatible auth adapter (`src/core/identity/`) — signs
-  JWT session cookies, writes to an `auth.users` table shaped exactly like
-  Supabase's GoTrue would, so swapping in real Supabase Auth later only
-  touches that one module, not any caller (see
+- `src/core/identity/adapter.ts` — migrated in code to real Supabase Auth
+  (`@supabase/supabase-js`'s `signUp`/`signInWithPassword`/`signOut`), plus
+  new `verify-email`/`reset-password`/`forgot-password` routes. **Not yet
+  verified against a live Supabase project** — this sandbox has no Supabase
+  credentials or network access to GoTrue. Falls back automatically to the
+  original local bcrypt+JWT adapter (same `auth.users`-shaped local table)
+  when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are unset, so local
+  dev/CI/`npm test` don't need live credentials either (see
   [Why not real Supabase](#why-not-real-supabase-here) below)
 - Organizations + RBAC (`organizations`, `organization_members`, `roles`,
   `permissions`) — every registered account gets its own organization; the
@@ -228,11 +232,26 @@ ship as separate containers). Against a **real Supabase project**, none of
 needed — Supabase already provisions `anon`/`authenticated`/`service_role`
 and PostgREST already sets `request.jwt.claims` per request. Swapping in
 real Supabase Auth means: pointing `DATABASE_URL` at the Supabase Postgres
-connection string, dropping the local `auth.users` population from
-`src/core/identity/register.ts` in favor of the real `supabase.auth.signUp()`
-call, and removing `drizzle/manual/01_rls_and_roles.sql`'s role-provisioning
-statements (keeping only the RLS policies themselves, which are
-plain portable SQL).
+connection string, and removing `drizzle/manual/01_rls_and_roles.sql`'s
+role-provisioning statements (keeping only the RLS policies themselves,
+which are plain portable SQL).
+
+**Update (Task 3):** the code side of this swap is done —
+`src/core/identity/adapter.ts` now calls `supabase.auth.signUp()` /
+`signInWithPassword()` / `signOut()` via `@supabase/supabase-js` whenever
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set, with new
+`/api/auth/verify-email`, `/api/auth/reset-password`, and
+`/api/auth/forgot-password` routes for Supabase's native email-verification
+and password-recovery flows. `src/core/identity/register.ts` no longer
+writes to `auth.users` directly when Supabase is configured. **What's not
+done, and can't be done here:** this has never run against a real Supabase
+project — no credentials exist in this sandbox and it has no network path
+to a live GoTrue instance. Treat the Supabase code path as
+mechanically-reviewed (passes lint/tsc/tests) but operationally unverified
+until it's pointed at a real project. When Supabase env vars are unset (the
+default here), the adapter transparently falls back to the original local
+bcrypt+JWT implementation, which is what `npm test` and local dev still
+exercise.
 
 ## Testing
 
@@ -267,5 +286,6 @@ npm run test:watch
   (currently deterministic, by design).
 - Distributed rate limiting (currently in-memory/per-process — fine for one
   instance, needs a shared store behind a load balancer).
-- Real Supabase Auth/Storage/Realtime (see
-  [Why not real Supabase here](#why-not-real-supabase-here) above).
+- Real Supabase Storage/Realtime. Supabase **Auth** is migrated in code (see
+  [Why not real Supabase here](#why-not-real-supabase-here) above) but not
+  verified against a live project.

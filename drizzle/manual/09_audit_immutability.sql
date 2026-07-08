@@ -1,0 +1,24 @@
+-- Immutability for the legal-grade audit trail (Task 2 — src/core/audit/timeline.ts).
+--
+-- 01_rls_and_roles.sql's `grant all privileges on all tables in schema
+-- public to authenticated` (plus its `alter default privileges` for future
+-- tables) hands `authenticated` — and therefore `app_user`, the RLS-enforced
+-- connection every request runs under (src/db/client.ts) — UPDATE/DELETE on
+-- every table, including domain_events and workflow_history, by default.
+-- 07_domain_events_rls.sql and 08_workflow_rls.sql only ever added a SELECT
+-- policy for these two tables, so RLS's "no matching policy => denied"
+-- default already blocks `app_user` from mutating existing rows or deleting
+-- them today — but that protection is implicit and would silently vanish
+-- the moment anyone adds an UPDATE/DELETE policy to either table later.
+-- These two tables are meant to be append-only forever (the audit timeline
+-- is only trustworthy if a transition/event row can't be edited after the
+-- fact), so make that explicit and independent of RLS policy changes: strip
+-- the UPDATE/DELETE privilege itself.
+--
+-- service_role (and the local sandbox's superuser DATABASE_URL connection,
+-- which stands in for it — see 01_rls_and_roles.sql's role-provisioning
+-- comment) still bypasses both RLS and these grants, same as every other
+-- table; that's the trusted admin/migration path, not the one an audit
+-- trail needs to be protected against.
+revoke update, delete on domain_events from authenticated;
+revoke update, delete on workflow_history from authenticated;

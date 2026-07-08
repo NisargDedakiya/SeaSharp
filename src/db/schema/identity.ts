@@ -10,11 +10,15 @@ import {
   unique,
 } from "drizzle-orm/pg-core";
 
-// Mirrors Supabase's `auth` schema. In real Supabase this table is owned and
-// populated by GoTrue; locally (no GoTrue available in this sandbox — see
-// docs/README.md's current-state table) our own auth adapter
-// (`src/lib/auth/`) populates it directly, keeping the exact shape GoTrue
-// would produce so a later swap to real Supabase Auth needs no schema change.
+// Mirrors Supabase's `auth` schema. Against a real Supabase project,
+// `DATABASE_URL` points directly at that project's Postgres connection
+// string, so this table *is* the same physical `auth.users` table GoTrue
+// owns and populates — not a separate mirror — which is why no migration is
+// needed to point `profiles.id` at it: it already is that table. Locally/in
+// CI (no live Supabase project — see docs/README.md's current-state table),
+// `src/core/identity/adapter.ts`'s local fallback backend populates this
+// table itself, keeping the exact shape GoTrue would produce. See
+// adapter.ts's top-of-file comment for the full read on this tradeoff.
 const authSchema = pgSchema("auth");
 
 export const authUsers = authSchema.table("users", {

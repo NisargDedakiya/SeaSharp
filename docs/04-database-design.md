@@ -33,6 +33,11 @@ gen_random_uuid()`, `created_at timestamptz default now()`, and
 
 ### `profiles`
 Extends Supabase Auth's `auth.users` with app-specific fields (1:1 on `id`).
+Against a real Supabase project, `auth.users` is the actual GoTrue-owned
+table in that project's Postgres (not a mirror in this repo's schema) — see
+`src/db/schema/identity.ts`'s comment on `authUsers` and
+`src/core/identity/adapter.ts`'s header comment for why `profiles.id` needs
+no migration to point at it.
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | FK → `auth.users.id` |
@@ -177,6 +182,96 @@ silently "self-heals").
 `rfq_id`, `exporter_org_id`, `requested_amount`, `approved_amount`,
 `interest_rate_percent`, `risk_band`, `status enum (requested, approved,
 rejected, disbursed, repaying, repaid, defaulted)`.
+
+## Workflow domain
+
+The unified engine (`src/core/workflow/engine.ts`) — the single source of
+truth for "where is this trade right now," instead of `rfqs.status`,
+`escrow_milestones`, and `shipments.transport_stage` each independently
+tracking a slice of it (those columns are still written directly by their
+own routes today for backward-compat/other-query reasons; the workflow
+tables are the cross-cutting view over all of them).
+
+### `workflow_definitions`
+| Column | Type | Notes |
+|---|---|---|
+| `name` | text | e.g. `trade-lifecycle` |
+| `version` | integer | unique with `name` |
+| `graph` | jsonb | `Record<node, node[]>` of allowed next nodes — the same shape `RFQ_TRANSITIONS` used in `trade-workflow.ts`, generalized |
+
+Reference-like data: open-read to `authenticated`, writable only by
+`service_role` (same treatment as `countries`/`hs_codes`/`tariffs`) — see
+`drizzle/manual/08_workflow_rls.sql`.
+
+### `workflow_instances`
+| Column | Type | Notes |
+|---|---|---|
+| `workflow_definition_id` | uuid | FK → `workflow_definitions.id` |
+| `rfq_id` | uuid unique | FK → `rfqs.id`; one instance per trade |
+| `organization_id` | uuid | FK, for RLS |
+| `current_node` | text | validated against the definition's `graph` on every `advanceInTx()` call |
+
+### `workflow_history`
+| Column | Type | Notes |
+|---|---|---|
+| `workflow_instance_id` | uuid | FK → `workflow_instances.id`, cascade delete |
+| `organization_id` | uuid | FK, for RLS |
+| `from_node` / `to_node` | text | |
+| `actor_profile_id` | uuid nullable | |
+| `metadata` | jsonb nullable | |
+
+Immutable per-transition record — no application role has `UPDATE`/`DELETE`
+on this table, same discipline as `audit_logs`. There is no separate
+`workflow_events` table: every `advanceInTx()` call is followed by
+`emitTransition()`, which emits a `WORKFLOW_TRANSITIONED` domain event into
+the already-existing `domain_events` table — a workflow transition already
+*is* a domain event, so a second event-writing path would just be
+`domain_events` duplicated with fewer columns. `workflow_history` is the
+fast, workflow-instance-scoped read model; `domain_events` remains the
+cross-domain log every subscriber (audit log, notifications) already reads.
+
+## Audit timeline (read model)
+
+`src/core/audit/timeline.ts`'s `getAuditTimeline(entityType, entityId)` is a
+pure read model over two tables that already exist for other reasons —
+`domain_events` (the cross-domain event log, above) and `workflow_history`
+(the per-transition record, Workflow domain above) — rather than a third
+table a Task 2 could have introduced. Every trade-lifecycle table is
+ultimately keyed on an `rfq_id` (a shipment is 1:1 with its RFQ via
+`shipments.rfq_id unique`), so any supported `entityType` (`rfq`,
+`shipment`) is first resolved down to an `rfqId`, then:
+
+- every `domain_events` row whose `payload->>'rfqId'` matches, and
+- every `workflow_history` row for that RFQ's `workflow_instances` row
+
+are merged and sorted by `created_at` into one chronological list — e.g.
+"RFQ created -> Bid submitted -> Workflow transitioned OPEN -> AWARDED ->
+Escrow milestone released" — each entry carrying its actor (resolved to a
+`profiles.full_name`), timestamp, event/transition type, a human description,
+and the raw payload/metadata for anyone who needs the diff, not just the
+summary. It never writes to either table.
+
+Exposed at `GET /api/audit/:entityType/:entityId` — see
+[docs/06-api-integration-spec.md](./06-api-integration-spec.md#shipped-audit-timeline-endpoint).
+
+### Immutability
+
+`domain_events` and `workflow_history` must never be mutated after the fact
+— that's what makes this a legal-grade audit trail rather than a log an
+insider could quietly edit. `07_domain_events_rls.sql` and
+`08_workflow_rls.sql` only ever granted `authenticated` a `SELECT` policy on
+these two tables, so Postgres RLS's "no matching policy ⇒ denied" default
+already blocked `app_user` from running `UPDATE`/`DELETE` against them — but
+that protection was implicit, and would have silently disappeared the
+moment anyone added an update/delete policy later. `drizzle/manual/
+09_audit_immutability.sql` makes it explicit and independent of RLS policy
+changes: it revokes the `UPDATE`/`DELETE` table privilege itself from
+`authenticated` (which `01_rls_and_roles.sql`'s blanket `grant all
+privileges on all tables ... to authenticated` had granted by default, same
+as every other table). `service_role` (and the local sandbox's superuser
+`DATABASE_URL` connection standing in for it) still bypasses this, same as
+it bypasses RLS everywhere else — that's the trusted migration/admin path,
+not what the audit trail needs protecting from.
 
 ## AI domain
 

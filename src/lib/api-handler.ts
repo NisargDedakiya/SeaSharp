@@ -4,7 +4,7 @@ import { ZodError } from "zod";
 import { randomUUID } from "crypto";
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "@/lib/logger";
-import { clientIpFromRequest, rateLimit } from "@/lib/rate-limit";
+import { rateLimit, rateLimitKeyFromRequest } from "@/lib/rate-limit";
 
 // Expected, user-facing failures (not found, forbidden, conflict, etc.).
 // Route handlers throw this instead of manually constructing a NextResponse,
@@ -21,6 +21,14 @@ export class AppError extends Error {
 type RouteContext<Params> = { params: Params };
 type Handler<Params> = (request: Request, context: RouteContext<Params>) => Promise<Response>;
 
+// Next.js 15 makes route handler `params` a Promise (async request APIs
+// change). This is the shape Next actually calls the exported GET/POST/etc.
+// with; withApiHandler awaits it once here so every individual route
+// handler can keep destructuring `params` as a plain, already-resolved
+// object exactly as it did on Next 14.
+type NextRouteContext<Params> = { params: Promise<Params> };
+type NextHandler<Params> = (request: Request, context: NextRouteContext<Params>) => Promise<Response>;
+
 type ApiHandlerOptions = {
   /** Per-key request cap, keyed by client IP + route path. Omit for unlimited. */
   rateLimit?: { limit: number; windowMs: number };
@@ -33,7 +41,7 @@ type ApiHandlerOptions = {
 export function withApiHandler<Params = Record<string, string>>(
   handler: Handler<Params>,
   options?: ApiHandlerOptions
-): Handler<Params> {
+): NextHandler<Params> {
   return async (request, context) => {
     const start = Date.now();
     const requestId = randomUUID();
@@ -42,11 +50,14 @@ export function withApiHandler<Params = Record<string, string>>(
     const log = logger.child({ requestId, method, path });
 
     try {
+      const params = await context.params;
       if (options?.rateLimit) {
-        const ip = clientIpFromRequest(request);
-        const result = rateLimit(`${path}:${ip}`, options.rateLimit.limit, options.rateLimit.windowMs);
+        // Keyed by API-key prefix when the caller authenticates with a
+        // bearer key, IP otherwise — see rate-limit.ts#rateLimitKeyFromRequest.
+        const rateLimitKey = rateLimitKeyFromRequest(request);
+        const result = rateLimit(`${path}:${rateLimitKey}`, options.rateLimit.limit, options.rateLimit.windowMs);
         if (!result.success) {
-          log.warn({ ip }, "rate limit exceeded");
+          log.warn({ rateLimitKey }, "rate limit exceeded");
           return NextResponse.json(
             { error: "Too many requests. Please try again later." },
             {
@@ -57,7 +68,7 @@ export function withApiHandler<Params = Record<string, string>>(
         }
       }
 
-      const response = await handler(request, context);
+      const response = await handler(request, { params });
       log.info({ status: response.status, durationMs: Date.now() - start }, "request completed");
       return response;
     } catch (err) {

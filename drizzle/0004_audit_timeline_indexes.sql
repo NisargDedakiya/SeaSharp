@@ -1,0 +1,2 @@
+CREATE INDEX "domain_events_payload_rfq_id_idx" ON "domain_events" USING btree (("payload"->>'rfqId'));--> statement-breakpoint
+CREATE INDEX "workflow_history_instance_id_idx" ON "workflow_history" USING btree ("workflow_instance_id");

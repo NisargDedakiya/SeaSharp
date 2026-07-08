@@ -1,22 +1,24 @@
 import { AppError } from "@/lib/api-handler";
 
-// The trade lifecycle a workflow engine should eventually own end to end:
+// The trade lifecycle:
 //
 //   Inquiry -> RFQ -> Negotiation -> Contract -> Production -> Warehouse ->
 //   Pickup -> Export Customs -> Shipping -> Import Customs -> Delivery -> Payment
 //
-// Today only a slice of this is implemented, split across three separate
-// state fields rather than one unified workflow instance:
-//   - rfqs.status            (RFQ / award stage)
-//   - escrow_milestones      (funding-to-delivery checkpoints)
-//   - shipments.transportStage (physical movement stage)
-// This module is the first step toward unifying them: it centralizes the
-// *rules* for valid transitions so routes call `assertTransition()` instead
-// of re-deriving "is this move even legal" inline. Negotiation, Contract,
-// and Production/Warehouse stages aren't wired to any table yet (see
-// docs/02-product-requirements.md § Marketplace) — they're it's the next
-// thing to fold into this engine, not new tables re-implementing the same
-// state.
+// This used to be split across three separate state fields with no unified
+// instance (rfqs.status, escrow_milestones, shipments.transportStage). It
+// now has one: src/core/workflow/engine.ts's `workflow_instances` +
+// TRADE_LIFECYCLE_GRAPH is the single source of truth, and
+// award/route.ts + escrow/release/route.ts call `advanceInTx()` there
+// instead of driving these functions directly.
+//
+// This module's `assertTransition()` is still the one place that decides
+// "is this move even legal" — engine.ts calls it against a
+// workflow_definitions.graph instead of a hardcoded object. RFQ_TRANSITIONS
+// and assertRfqTransition/assertSequentialAdvance are kept as thin,
+// independently-testable wrappers around the same rule, and as a fallback
+// for any code that only cares about the RFQ-status/sequential-index slice
+// without touching a workflow_instances row.
 
 /** Generic directed transition graph: assert `to` is reachable from `from`. */
 export function assertTransition(
