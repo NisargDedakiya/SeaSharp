@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, integer, unique } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, timestamp, jsonb, integer, unique, index } from "drizzle-orm/pg-core";
 import { organizations } from "./identity";
 import { rfqs } from "./marketplace";
 
@@ -63,17 +63,25 @@ export const workflowInstances = pgTable("workflow_instances", {
 // workflow_history is the fast, workflow-instance-scoped read model;
 // domain_events remains the cross-domain event log the rest of the platform
 // (audit log, notifications) already subscribes to.
-export const workflowHistory = pgTable("workflow_history", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  workflowInstanceId: uuid("workflow_instance_id")
-    .notNull()
-    .references(() => workflowInstances.id, { onDelete: "cascade" }),
-  organizationId: uuid("organization_id")
-    .notNull()
-    .references(() => organizations.id),
-  fromNode: text("from_node").notNull(),
-  toNode: text("to_node").notNull(),
-  actorProfileId: uuid("actor_profile_id"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const workflowHistory = pgTable(
+  "workflow_history",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workflowInstanceId: uuid("workflow_instance_id")
+      .notNull()
+      .references(() => workflowInstances.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id),
+    fromNode: text("from_node").notNull(),
+    toNode: text("to_node").notNull(),
+    actorProfileId: uuid("actor_profile_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  // Postgres doesn't auto-index foreign keys, and src/core/audit/timeline.ts
+  // joins workflow_instances -> workflow_history on this column for every
+  // audit timeline read — index it rather than let that join degrade to a
+  // seq scan as history grows.
+  (table) => [index("workflow_history_instance_id_idx").on(table.workflowInstanceId)]
+);

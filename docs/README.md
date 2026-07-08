@@ -28,7 +28,7 @@ Supabase Auth/Storage/Realtime, Next.js 15). Concretely:
 | Auth | Local Supabase-Auth-compatible adapter (`src/core/identity/adapter.ts`) — same `auth.users` shape, JWT session cookies | Real Supabase Auth (GoTrue) — see [top-level README § Why not real Supabase here](../README.md#why-not-real-supabase-here) |
 | Framework | Next.js 14 (App Router) | Next.js 15 (App Router) |
 | Identity model | **Organizations, RBAC (roles/permissions), organization_members** ✅ | Same, plus teams/departments and invitation acceptance flow |
-| Code structure | **Core Engine (`src/core/<engine>/`) + AI Platform (`src/core/ai/`) + Event Bus (`src/core/events/`) + Workflow Engine (`src/core/workflow/`) + Integrations (`src/integrations/`)** ✅ | Same — see [Technical Architecture § Folder structure](./03-technical-architecture.md#folder-structure) |
+| Code structure | **Core Engine (`src/core/<engine>/`) + AI Platform (`src/core/ai/`) + Event Bus (`src/core/events/`) + Workflow Engine (`src/core/workflow/`) + Audit Timeline (`src/core/audit/`) + Integrations (`src/integrations/`)** ✅ | Same — see [Technical Architecture § Folder structure](./03-technical-architecture.md#folder-structure) |
 | Domains live | Identity/Orgs, Trade Intelligence, RFQ Marketplace, Logistics (stub), Trade Finance (stub), STS, KYC (stub), event log + in-app notifications | All of the above, plus Activity Center UI, Company Profiles, Admin Console, Wallet/Ledger, full AI service layer, email/SMS delivery |
 | Storage | None (no file uploads yet) | Supabase Storage buckets for documents/contracts/certificates/avatars |
 | Realtime | Polling (`CountdownTimer`) | Supabase Realtime channels |

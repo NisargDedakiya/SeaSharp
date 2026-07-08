@@ -51,6 +51,70 @@ Every mutating endpoint requires the caller's role/permission to be checked
 against the target `organization_id` — see
 [Technical Architecture § Multi-tenancy](./03-technical-architecture.md#multi-tenancy-model).
 
+## Shipped: audit timeline endpoint
+
+Unlike the rest of this document (v2.0 target architecture, see the status
+note above), the following is a real, shipped, unversioned route —
+`src/app/api/audit/[entityType]/[entityId]/route.ts` — added for Task 2's
+audit trail (see
+[docs/04-database-design.md#audit-timeline-read-model](./04-database-design.md#audit-timeline-read-model)).
+It's the current codebase's equivalent of a future `GET
+/api/v1/audit/:entityType/:entityId` and would move under `/api/v1` unchanged
+whenever the rest of the API is versioned.
+
+**`GET /api/audit/:entityType/:entityId`**
+
+- **Auth**: Supabase-style session cookie (`getSessionActor()`), same as
+  every other first-party route in this phase — no bearer-key/public access
+  yet.
+- **`entityType`**: one of `rfq`, `shipment` (validated with a Zod enum;
+  anything else is a 400). A `shipment` id is resolved to its owning RFQ
+  before the timeline is built, since every trade-lifecycle table is
+  ultimately keyed on `rfq_id`.
+- **Scope**: only a member of the RFQ's importer organization, or the
+  organization whose bid was awarded on that RFQ, may read its timeline — a
+  403 otherwise. A nonexistent entity is a 404.
+- **Response**: `{ entityType, entityId, timeline: TimelineEntry[] }`, where
+  each entry is `{ timestamp, actor: { profileId, name }, type,
+  description, payload }`, sorted chronologically (oldest first).
+
+Example:
+
+```
+GET /api/audit/rfq/bac007ce-c18b-4025-ad5b-0523441ca007
+```
+
+```json
+{
+  "entityType": "rfq",
+  "entityId": "bac007ce-c18b-4025-ad5b-0523441ca007",
+  "timeline": [
+    {
+      "timestamp": "2026-07-08T15:46:40.855Z",
+      "actor": { "profileId": "5215e995-...", "name": "Importer Audit" },
+      "type": "RFQ_CREATED",
+      "description": "RFQ created",
+      "payload": { "rfqId": "bac007ce-...", "product": "Widgets" }
+    },
+    {
+      "timestamp": "2026-07-08T15:46:43.198Z",
+      "actor": { "profileId": "5215e995-...", "name": "Importer Audit" },
+      "type": "WORKFLOW_TRANSITIONED",
+      "description": "Workflow transitioned: OPEN -> AWARDED",
+      "payload": { "rfqId": "bac007ce-...", "fromNode": "OPEN", "toNode": "AWARDED", "workflowInstanceId": "fb656bc4-..." }
+    }
+  ]
+}
+```
+
+Not yet wired into the dashboard — `src/components/dashboard/
+AuditTimelineWidget.tsx` fetches and renders this endpoint standalone, ready
+for a future dashboard task to place it. If a later phase exposes this
+externally through the public API Platform (Phase 4+, see below), it will
+need the same bearer-key auth and rate limiting as every other externally
+exposed endpoint — nothing about it is safe to expose unauthenticated today,
+since the payloads can carry internal ids/organization details.
+
 ## Webhooks
 
 ### Inbound (third parties → SeaSharp)

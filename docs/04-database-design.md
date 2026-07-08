@@ -225,6 +225,49 @@ the already-existing `domain_events` table — a workflow transition already
 fast, workflow-instance-scoped read model; `domain_events` remains the
 cross-domain log every subscriber (audit log, notifications) already reads.
 
+## Audit timeline (read model)
+
+`src/core/audit/timeline.ts`'s `getAuditTimeline(entityType, entityId)` is a
+pure read model over two tables that already exist for other reasons —
+`domain_events` (the cross-domain event log, above) and `workflow_history`
+(the per-transition record, Workflow domain above) — rather than a third
+table a Task 2 could have introduced. Every trade-lifecycle table is
+ultimately keyed on an `rfq_id` (a shipment is 1:1 with its RFQ via
+`shipments.rfq_id unique`), so any supported `entityType` (`rfq`,
+`shipment`) is first resolved down to an `rfqId`, then:
+
+- every `domain_events` row whose `payload->>'rfqId'` matches, and
+- every `workflow_history` row for that RFQ's `workflow_instances` row
+
+are merged and sorted by `created_at` into one chronological list — e.g.
+"RFQ created -> Bid submitted -> Workflow transitioned OPEN -> AWARDED ->
+Escrow milestone released" — each entry carrying its actor (resolved to a
+`profiles.full_name`), timestamp, event/transition type, a human description,
+and the raw payload/metadata for anyone who needs the diff, not just the
+summary. It never writes to either table.
+
+Exposed at `GET /api/audit/:entityType/:entityId` — see
+[docs/06-api-integration-spec.md](./06-api-integration-spec.md#shipped-audit-timeline-endpoint).
+
+### Immutability
+
+`domain_events` and `workflow_history` must never be mutated after the fact
+— that's what makes this a legal-grade audit trail rather than a log an
+insider could quietly edit. `07_domain_events_rls.sql` and
+`08_workflow_rls.sql` only ever granted `authenticated` a `SELECT` policy on
+these two tables, so Postgres RLS's "no matching policy ⇒ denied" default
+already blocked `app_user` from running `UPDATE`/`DELETE` against them — but
+that protection was implicit, and would have silently disappeared the
+moment anyone added an update/delete policy later. `drizzle/manual/
+09_audit_immutability.sql` makes it explicit and independent of RLS policy
+changes: it revokes the `UPDATE`/`DELETE` table privilege itself from
+`authenticated` (which `01_rls_and_roles.sql`'s blanket `grant all
+privileges on all tables ... to authenticated` had granted by default, same
+as every other table). `service_role` (and the local sandbox's superuser
+`DATABASE_URL` connection standing in for it) still bypasses this, same as
+it bypasses RLS everywhere else — that's the trusted migration/admin path,
+not what the audit trail needs protecting from.
+
 ## AI domain
 
 `ai_predictions` (generic: `service_name, input jsonb, output jsonb,
