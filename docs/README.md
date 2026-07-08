@@ -17,16 +17,16 @@ signal to update one of them deliberately — not to let them silently drift.
 ## Current state vs. v2.0 target — read this first
 
 **These documents describe the v2.0 target architecture.** The database,
-ORM, auth, and identity model columns below are now live — not a future
-target — following the stack migration. What's still target-only is the
-newer platform surface (Notifications, Admin Console, Wallet/Ledger, real
-Supabase Auth/Storage/Realtime, Next.js 15). Concretely:
+ORM, auth, identity model, and framework columns below are now live — not a
+future target — following the stack migration. What's still target-only is
+the newer platform surface (Notifications, Admin Console, Wallet/Ledger, real
+Supabase Auth/Storage/Realtime). Concretely:
 
 | | Today (shipped) | v2.0 target (this doc set) |
 |---|---|---|
 | Database | **Postgres via Drizzle ORM, real transactions + Row Level Security** ✅ | Supabase PostgreSQL via Drizzle ORM, Row Level Security |
 | Auth | **Migrated in code to real Supabase Auth client calls** (`src/core/identity/adapter.ts` — `signUp`/`signInWithPassword`/`signOut` via `@supabase/supabase-js`, plus new email-verification/password-reset routes) — **not yet verified against a live Supabase project**, since this sandbox has no Supabase credentials and no network access to a GoTrue instance. Automatically falls back to the original local bcrypt+JWT adapter when Supabase env vars are unset, so `npm test`/local dev still run without live credentials ⚠️ | Real Supabase Auth (GoTrue), verified end-to-end against a live project — see [top-level README § Why not real Supabase here](../README.md#why-not-real-supabase-here) |
-| Framework | Next.js 14 (App Router) | Next.js 15 (App Router) |
+| Framework | **Next.js 15 (App Router)** ✅ | Next.js 15 (App Router) |
 | Identity model | **Organizations, RBAC (roles/permissions), organization_members** ✅ | Same, plus teams/departments and invitation acceptance flow |
 | Code structure | **Core Engine (`src/core/<engine>/`) + AI Platform (`src/core/ai/`) + Event Bus (`src/core/events/`) + Workflow Engine (`src/core/workflow/`) + Audit Timeline (`src/core/audit/`) + Search (`src/core/search/`) + Integrations (`src/integrations/`)** ✅ | Same — see [Technical Architecture § Folder structure](./03-technical-architecture.md#folder-structure) |
 | Search | **Postgres full-text search (`tsvector` + GIN) for HS Codes and RFQs** via `GET /api/search`, `Cmd+K` global search UI ✅ — Companies/Products/Ports/Warehouses/Documents stubbed (empty results) pending those domains' data | Same entity coverage, real once each domain ships data — see [API & Integration Spec § Shipped: search endpoint](./06-api-integration-spec.md#shipped-search-endpoint) |

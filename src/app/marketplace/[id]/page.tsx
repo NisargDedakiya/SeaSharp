@@ -12,10 +12,11 @@ import { EscrowTracker } from "./EscrowTracker";
 
 export const dynamic = "force-dynamic";
 
-export default async function RfqDetailPage({ params }: { params: { id: string } }) {
+export default async function RfqDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const actor = await getSessionActor();
 
-  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, params.id) });
+  const rfq = await serviceDb.query.rfqs.findFirst({ where: eq(rfqs.id, id) });
   if (!rfq) notFound();
 
   const importer = await serviceDb.query.organizations.findFirst({

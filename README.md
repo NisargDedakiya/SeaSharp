@@ -19,7 +19,7 @@ below.
 
 ## Stack
 
-- Next.js 14 (App Router) + TypeScript
+- Next.js 15 (App Router) + TypeScript
 - Tailwind CSS, `framer-motion`
 - **Postgres via Drizzle ORM**, with real Row Level Security — see
   [Row Level Security](#row-level-security) below
