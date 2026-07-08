@@ -225,6 +225,27 @@ Verification badge, certifications, trade history, employees, warehouses,
 products, STS. **Acceptance criteria**: profile is publicly viewable (minus
 sensitive fields) without authentication, to support discovery.
 
+### Widget-Based Dashboard *(v2.0 — Task 5/8)*
+`/dashboard` renders a configurable grid of widgets instead of one fixed
+layout per organization type: SeaSharp Trust Score, KYC/KYB, PO-Backed Trade
+Finance, RFQs, Shipments, Revenue, Notifications, plus Calendar and Tasks
+placeholders for domains not built yet. Each widget is independently
+registered (`src/components/dashboard/widgets/registry.ts`) so adding a new
+one never touches the page's layout logic. **Acceptance criteria**:
+- Every non-placeholder widget (STS, KYC, Loan, RFQs, Shipments, Revenue,
+  Notifications) renders real data from its owning domain table — no widget
+  fabricates numbers it can't back with a query. Calendar and Tasks are
+  explicitly labeled "coming soon" until a calendar/task domain exists.
+- A user can show/hide and reorder widgets from the dashboard itself; the
+  resulting layout persists per-profile-per-organization (`dashboard_layouts`
+  table) and is restored on the next sign-in / session, not just for the
+  current browser tab.
+- A profile who has never customized their layout gets a sensible
+  organization-type default (exporters see STS/KYC/Loan/Revenue; importers
+  see RFQs first) rather than an empty dashboard.
+- Hiding a widget never deletes its underlying data — toggling it back on
+  immediately shows the same live data again.
+
 ### Admin Dashboard *(Phase 5, MVP subset earlier as needed)*
 User/company/country/HS-code/tariff management, marketplace moderation,
 shipment/escrow/finance/AI/security monitoring, audit logs, platform

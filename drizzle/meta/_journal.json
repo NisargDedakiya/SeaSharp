@@ -43,6 +43,13 @@
       "when": 1783609200000,
       "tag": "0005_search_fts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783526698872,
+      "tag": "0006_illegal_newton_destine",
+      "breakpoints": true
     }
   ]
 }
