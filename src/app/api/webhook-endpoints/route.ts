@@ -3,7 +3,7 @@ import { z } from "zod";
 import crypto from "crypto";
 import { eq } from "drizzle-orm";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { getSessionActor } from "@/core/identity/session";
+import { getSessionActor, requireRole, TEAM_INTEGRATIONS_ROLES } from "@/core/identity/session";
 import { serviceDb } from "@/db/client";
 import { webhookEndpoints } from "@/db/schema";
 import { EVENT_TYPES } from "@/core/events/types";
@@ -20,6 +20,7 @@ const createEndpointSchema = z.object({
 export const GET = withApiHandler(async () => {
   const actor = await getSessionActor();
   if (!actor) throw new AppError(401, "Sign in required.");
+  requireRole(actor, TEAM_INTEGRATIONS_ROLES);
 
   const endpoints = await serviceDb.query.webhookEndpoints.findMany({
     where: eq(webhookEndpoints.organizationId, actor.organization.id),
@@ -40,6 +41,7 @@ export const GET = withApiHandler(async () => {
 export const POST = withApiHandler(async (request: Request) => {
   const actor = await getSessionActor();
   if (!actor) throw new AppError(401, "Sign in required.");
+  requireRole(actor, TEAM_INTEGRATIONS_ROLES);
 
   const body = await request.json();
   const { url, eventTypes } = createEndpointSchema.parse(body);

@@ -5,6 +5,7 @@ import { serviceDb } from "@/db/client";
 import { profiles, organizationMembers, organizations, roles } from "@/db/schema";
 import { SESSION_COOKIE, verifySessionToken } from "@/core/identity/adapter";
 import { validateApiKey } from "@/core/api-platform/keys";
+import { AppError } from "@/lib/api-handler";
 
 export type SessionUser = { id: string; email: string; fullName: string };
 
@@ -62,6 +63,21 @@ export async function getCurrentOrganization(profileId: string): Promise<Current
 }
 
 export type AuthenticatedActor = { user: SessionUser; organization: CurrentOrganization };
+
+// Org roles allowed to manage the org's own API keys / webhook endpoints
+// (see src/app/api/api-keys and src/app/api/webhook-endpoints) — shared
+// constant so the UI's rendering decision and the API's enforcement can't
+// drift apart.
+export const TEAM_INTEGRATIONS_ROLES = ["Owner", "Admin"] as const;
+
+// Throws a 403 AppError unless actor.organization.roleName is one of
+// allowedRoles. Routes call this immediately after their existing
+// `if (!actor) throw new AppError(401, ...)` check.
+export function requireRole(actor: AuthenticatedActor, allowedRoles: readonly string[]): void {
+  if (!allowedRoles.includes(actor.organization.roleName)) {
+    throw new AppError(403, "You don't have permission to perform this action.");
+  }
+}
 
 // Convenience for API routes that need both identity and org/role in one
 // call — most Marketplace/Finance routes gate on organization.type (the

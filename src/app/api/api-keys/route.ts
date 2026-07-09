@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { withApiHandler, AppError } from "@/lib/api-handler";
-import { getSessionActor } from "@/core/identity/session";
+import { getSessionActor, requireRole, TEAM_INTEGRATIONS_ROLES } from "@/core/identity/session";
 import { issueApiKey, listApiKeys } from "@/core/api-platform/keys";
 
 // Management of an organization's own API keys — session-cookie auth only
@@ -15,6 +15,7 @@ const createKeySchema = z.object({
 export const GET = withApiHandler(async () => {
   const actor = await getSessionActor();
   if (!actor) throw new AppError(401, "Sign in required.");
+  requireRole(actor, TEAM_INTEGRATIONS_ROLES);
 
   const keys = await listApiKeys(actor.organization.id);
   return NextResponse.json(
@@ -33,6 +34,7 @@ export const GET = withApiHandler(async () => {
 export const POST = withApiHandler(async (request: Request) => {
   const actor = await getSessionActor();
   if (!actor) throw new AppError(401, "Sign in required.");
+  requireRole(actor, TEAM_INTEGRATIONS_ROLES);
 
   const body = await request.json();
   const { name, scopes } = createKeySchema.parse(body);

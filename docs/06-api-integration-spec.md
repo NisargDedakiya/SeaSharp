@@ -409,6 +409,12 @@ Redis).
 | `POST` | `/api/webhook-endpoints` | Register an endpoint — `{ url, eventTypes }` → `{ id, url, eventTypes, secret }` (`secret` shown once) |
 | `DELETE` | `/api/webhook-endpoints/:id` | Revoke an endpoint (sets `revokedAt`) |
 
+All six routes above (`/api/api-keys*` and `/api/webhook-endpoints*`, including
+`GET`) require the caller's organization role to be Owner or Admin —
+Members receive a 403. Enforced via `requireRole()` /
+`TEAM_INTEGRATIONS_ROLES` in `src/core/identity/session.ts`, called
+immediately after the existing session check in each handler.
+
 Example — issue a key and call `/api/search` with it:
 
 ```
