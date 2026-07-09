@@ -44,6 +44,7 @@ export function Navbar({ user }: { user: SessionUser | null }) {
 
         <div className="hidden items-center gap-8 text-sm font-medium md:flex">
           <NavLink href="/compliance-checker">Compliance Checker</NavLink>
+          <NavLink href="/market">Market</NavLink>
           <NavLink href="/marketplace">RFQ Marketplace</NavLink>
           {user && <NavLink href="/dashboard">Dashboard</NavLink>}
         </div>

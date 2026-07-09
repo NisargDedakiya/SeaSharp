@@ -115,6 +115,22 @@ acceptance criteria. Scope per phase follows the roadmap in the
   category, country, and trust tier, independent of an open RFQ.
 - **Acceptance criteria**: discovery results respect verification and
   visibility settings; STS tier affects default sort order.
+- **Shipped (partial, `/market`)**: an importer-facing exporter directory
+  lists every `organizations` row with `type = 'EXPORTER'`, filterable by
+  country, STS tier, and KYC-verified-only, free-text searchable by name/
+  country, and sortable by STS score / completed-shipment count / newest.
+  Every figure on a card (STS score/tier, KYC status, completed shipments,
+  distinct products, distinct destinations, open bids) is derived live from
+  `organizations`/`shipments`/`rfqs`/`bids` — an exporter with no shipment
+  history shows "No completed shipments yet" rather than a fabricated
+  number. A prominent CTA links into the existing `/marketplace/new` RFQ
+  form (Section 3.1) rather than duplicating it. The same page shows
+  signed-in exporters the existing open-RFQ list (reusing `listOpenRfqs`)
+  so they can apply via the existing `/marketplace/[id]` bid flow (Section
+  3.1) — no new bidding surface. **Still missing**: no per-exporter public
+  profile detail page (no `/market/[slug]`), no product-category filter (no
+  product-taxonomy join yet), and no visibility/privacy settings — every
+  exporter organization is listed unconditionally.
 
 ### 3.5 Chat & File Sharing
 - **Flow**: once two parties are matched on an RFQ, a scoped chat thread
