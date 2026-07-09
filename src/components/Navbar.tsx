@@ -47,6 +47,7 @@ export function Navbar({ user }: { user: SessionUser | null }) {
           <NavLink href="/market">Market</NavLink>
           <NavLink href="/marketplace">RFQ Marketplace</NavLink>
           {user && <NavLink href="/dashboard">Dashboard</NavLink>}
+          {user && <NavLink href="/verification">Verification</NavLink>}
         </div>
 
         <div className="flex items-center gap-3">

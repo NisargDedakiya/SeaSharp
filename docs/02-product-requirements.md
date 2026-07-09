@@ -36,12 +36,40 @@ acceptance criteria. Scope per phase follows the roadmap in the
   rights); attempts at unauthorized actions return 403 and are audit-logged.
 
 ### 1.4 Company Verification (KYC/KYB)
-- **Flow**: an organization submits registration documents, tax ID, and
-  beneficial-ownership info; SupplierRadar/ComplianceAI flags anomalies;
-  an admin (or automated pipeline) approves/rejects.
+- **Flow**: an organization (importer, exporter, or any other org type —
+  this is not exporter-only) submits registration documents, tax ID, and
+  beneficial-ownership info via a dedicated `/verification` page;
+  SupplierRadar/ComplianceAI (`runSupplierCheck()`) flags anomalies against
+  the submitted fields; the result is applied automatically (no human
+  review step exists yet — see below).
+- **Fields collected**: legal company name, registration number, tax ID,
+  country of registration, one or more beneficial owners (name +
+  ownership %), a registration document upload, and a tax document upload.
+- **Document upload**: implemented via a local-disk stand-in
+  (`src/core/storage/local-storage.ts`) for Supabase Storage, scoped only
+  to this feature — see docs/README.md's gap table. Uploaded files are
+  recorded in `uploaded_files` and linked from `kyc_submissions`.
+- **Flagging**: `runSupplierCheck()` is a deterministic heuristic (missing
+  or too-short registration number/tax ID, missing/invalid company name,
+  missing country, no valid beneficial owner, invalid ownership
+  percentage) — not real OSINT/anomaly detection. A submission with zero
+  flags is set to `VERIFIED`; any flag sets it to `PENDING`.
+- **History**: every submission (not just the latest) is persisted in
+  `kyc_submissions`, with its own status and flags, so `/verification` can
+  render a full submission history, not just current state.
 - **Acceptance criteria**: verification status is one of
-  `UNVERIFIED | PENDING | VERIFIED | REJECTED`; a `VERIFIED` badge appears on
-  the public company profile; verification state feeds the STS calculation.
+  `UNVERIFIED | PENDING | VERIFIED | REJECTED`; the organization's
+  `kycStatus` reflects the most recent submission's outcome; verification
+  state feeds the STS calculation for exporters
+  (`recalculateAndSaveSts`); a `KYC_VERIFIED`/`KYC_PENDING` domain event is
+  emitted on every submission.
+- **Deferred / explicitly out of scope for this iteration**: a human
+  admin/platform-admin review queue for `PENDING` submissions (the spec's
+  "an admin ... approves/rejects" alternative to the automated pipeline).
+  This codebase has no platform-admin role or admin console yet — that is
+  Phase 5 Admin Console work, not built here. `REJECTED` is a valid enum
+  value but nothing in this iteration transitions a submission to it;
+  today's automated pipeline only ever produces `PENDING` or `VERIFIED`.
 
 ### 1.5 Audit Logs
 - **Flow**: every state-changing action (login, document upload, escrow

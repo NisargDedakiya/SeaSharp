@@ -1,55 +1,41 @@
-"use client";
+import Link from "next/link";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+const STATUS_STYLES: Record<string, string> = {
+  VERIFIED: "text-emerald-700",
+  PENDING: "text-amber-700",
+  REJECTED: "text-rose-700",
+  UNVERIFIED: "text-ink-500",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  VERIFIED: "Verified by SupplierRadar",
+  PENDING: "Pending review",
+  REJECTED: "Rejected",
+  UNVERIFIED: "Not started",
+};
 
 export function KycPanel({ kycStatus }: { kycStatus: string }) {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [flags, setFlags] = useState<string[]>([]);
-
-  async function handleSubmit() {
-    setLoading(true);
-    setFlags([]);
-    try {
-      const res = await fetch("/api/kyc", { method: "POST" });
-      const data = await res.json();
-      if (data.flags?.length) setFlags(data.flags);
-      router.refresh();
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (kycStatus === "VERIFIED") {
-    return (
-      <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
-        <h2 className="font-semibold text-ink-900">KYC / KYB</h2>
-        <p className="mt-2 text-sm text-emerald-700">✓ Verified by SupplierRadar</p>
-      </div>
-    );
-  }
+  const statusClass = STATUS_STYLES[kycStatus] ?? "text-ink-500";
+  const statusLabel = STATUS_LABELS[kycStatus] ?? kycStatus;
 
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
       <h2 className="font-semibold text-ink-900">KYC / KYB</h2>
-      <p className="mt-2 text-sm text-ink-500">
-        Status: {kycStatus}. Complete your company profile then submit for verification.
+      <p className={`mt-2 text-sm font-medium ${statusClass}`}>
+        {kycStatus === "VERIFIED" ? "✓ " : ""}
+        {statusLabel}
       </p>
-      {flags.length > 0 && (
-        <ul className="mt-2 list-inside list-disc text-sm text-red-600">
-          {flags.map((f) => (
-            <li key={f}>{f}</li>
-          ))}
-        </ul>
-      )}
-      <button
-        onClick={handleSubmit}
-        disabled={loading}
-        className="mt-3 rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-ink-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold-500"
+      <p className="mt-1 text-sm text-ink-500">
+        {kycStatus === "VERIFIED"
+          ? "Your company verification is complete."
+          : "Submit registration documents, tax ID, and beneficial-ownership info for verification."}
+      </p>
+      <Link
+        href="/verification"
+        className="mt-3 inline-block rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-ink-800 focus:outline-none focus:ring-2 focus:ring-gold-500"
       >
-        {loading ? "Checking..." : "Submit for Verification"}
-      </button>
+        {kycStatus === "VERIFIED" ? "View Verification" : "Complete Verification"}
+      </Link>
     </div>
   );
 }

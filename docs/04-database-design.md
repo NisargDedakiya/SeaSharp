@@ -300,6 +300,32 @@ fumigation_certificate, letter_of_credit, proforma_invoice), storage_path,
 generated_by (user | doc_ai), signed_at nullable`), `uploaded_files` (looser
 attachments — chat files, KYC submission scans).
 
+`storage_path` on both tables is written by
+`src/core/storage/local-storage.ts`, a **local-disk stand-in for Supabase
+Storage** (`local://.uploads/<organizationId>/<uuid>-<filename>`, files
+written under a gitignored `.uploads/` at the repo root) — this sandbox has
+no real Supabase Storage credentials, and no general-purpose upload
+mechanism exists in this codebase; the stand-in is scoped only to the
+verification feature's document uploads (see docs/README.md's gap table).
+Swapping to real Supabase Storage later means replacing that module's
+internals while keeping its function signature, the same pattern
+`src/core/identity/adapter.ts` established for Supabase Auth.
+
+## Verification domain
+
+`kyc_submissions` (docs/02-product-requirements.md §1.4): one row per
+KYC/KYB submission attempt — `organization_id, submitted_by_profile_id,
+legal_company_name, registration_number, tax_id, country,
+beneficial_owners jsonb ([{name, ownershipPercent}]),
+registration_document_file_id / tax_document_file_id (nullable FK →
+uploaded_files), status (reuses organizations.kyc_status's enum), flags
+jsonb (string[] from runSupplierCheck()), reviewed_at, created_at`. Unlike
+`organizations.kyc_status` (the current, single source of truth other
+tables key off of), this table keeps the full submission history so
+`/verification` can render past attempts and their flags. No separate
+review/approval table exists — automated approve/reject only, since there
+is no admin role/console in this codebase (Phase 5 work).
+
 ## Row Level Security
 
 Every tenant-scoped table has RLS enabled with, at minimum, a policy of the
