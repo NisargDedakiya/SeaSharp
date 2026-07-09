@@ -10,6 +10,8 @@
 // per-type metadata (title, grid span, which org types see it by default)
 // so it can be imported from both server and client code without pulling
 // in `server-only` dependencies.
+import { organizationTypeEnum } from "@/db/schema/identity";
+
 export const WIDGET_TYPES = [
   "STS",
   "KYC",
@@ -21,23 +23,47 @@ export const WIDGET_TYPES = [
   "NOTIFICATIONS",
   "CALENDAR",
   "TASKS",
+  "CUSTOMS_QUEUE",
+  "INVENTORY",
+  "POLICIES",
+  "FUNDING_OPPORTUNITIES",
 ] as const;
 
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 export type WidgetGridSpan = 1 | 2 | 3;
 
+// Derived from the schema enum (src/db/schema/identity.ts's
+// organizationTypeEnum) rather than hand-duplicated, so adding a new
+// business type to the schema surfaces here as a type error until this
+// registry (and defaultLayoutFor below) is updated for it.
+export type OrganizationType = (typeof organizationTypeEnum.enumValues)[number];
+
 export type WidgetMeta = {
   type: WidgetType;
   title: string;
   gridSpan: WidgetGridSpan;
   /** Which organization types get this widget in their default layout. */
-  defaultFor: Array<"EXPORTER" | "IMPORTER">;
+  defaultFor: OrganizationType[];
 };
 
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
   STS: { type: "STS", title: "SeaSharp Trust Score", gridSpan: 3, defaultFor: ["EXPORTER"] },
-  KYC: { type: "KYC", title: "KYC / KYB", gridSpan: 1, defaultFor: ["EXPORTER", "IMPORTER"] },
+  KYC: {
+    type: "KYC",
+    title: "KYC / KYB",
+    gridSpan: 1,
+    defaultFor: [
+      "EXPORTER",
+      "IMPORTER",
+      "FREIGHT_FORWARDER",
+      "CUSTOMS_BROKER",
+      "WAREHOUSE_PROVIDER",
+      "INSURANCE_PROVIDER",
+      "FINANCE_PARTNER",
+      "INVESTOR",
+    ],
+  },
   LOAN: { type: "LOAN", title: "PO-Backed Trade Finance", gridSpan: 2, defaultFor: ["EXPORTER"] },
   AUDIT_TIMELINE: {
     type: "AUDIT_TIMELINE",
@@ -46,11 +72,48 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
     defaultFor: [],
   },
   RFQS: { type: "RFQS", title: "RFQs", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
-  SHIPMENTS: { type: "SHIPMENTS", title: "Shipments", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
+  // Real query is scoped to the two shipment parties (exporterOrganizationId
+  // / importerOrganizationId — see ShipmentsWidget.tsx and
+  // src/db/schema/logistics.ts's `shipments` table). There is no
+  // forwarder-assignment column on `shipments`, so a freight forwarder
+  // cannot be honestly resolved to "their" shipments yet. FREIGHT_FORWARDER
+  // is still listed here (it does default to this widget slot) but
+  // render.tsx's SHIPMENTS case renders a "coming soon" stub for that org
+  // type instead of the real exporter/importer query.
+  SHIPMENTS: { type: "SHIPMENTS", title: "Shipments", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER", "FREIGHT_FORWARDER"] },
   REVENUE: { type: "REVENUE", title: "Revenue", gridSpan: 1, defaultFor: ["EXPORTER"] },
-  NOTIFICATIONS: { type: "NOTIFICATIONS", title: "Notifications", gridSpan: 1, defaultFor: ["EXPORTER", "IMPORTER"] },
+  NOTIFICATIONS: {
+    type: "NOTIFICATIONS",
+    title: "Notifications",
+    gridSpan: 1,
+    defaultFor: [
+      "EXPORTER",
+      "IMPORTER",
+      "FREIGHT_FORWARDER",
+      "CUSTOMS_BROKER",
+      "WAREHOUSE_PROVIDER",
+      "INSURANCE_PROVIDER",
+      "FINANCE_PARTNER",
+      "INVESTOR",
+    ],
+  },
   CALENDAR: { type: "CALENDAR", title: "Calendar", gridSpan: 1, defaultFor: [] },
   TASKS: { type: "TASKS", title: "Tasks", gridSpan: 1, defaultFor: [] },
+  // Stub widgets below: no owning domain table/column exists yet to back
+  // these honestly (see logistics.ts / finance.ts — no forwarder
+  // assignment, no customs-queue table, no warehouse/inventory table, no
+  // insurance-policy table, and no "open/unassigned" funding-request
+  // concept on trade_loans). "Coming soon" placeholders only, no
+  // fabricated data.
+  CUSTOMS_QUEUE: { type: "CUSTOMS_QUEUE", title: "Customs Queue", gridSpan: 2, defaultFor: ["CUSTOMS_BROKER"] },
+  INVENTORY: { type: "INVENTORY", title: "Inventory", gridSpan: 2, defaultFor: ["WAREHOUSE_PROVIDER"] },
+  POLICIES: { type: "POLICIES", title: "Policies", gridSpan: 2, defaultFor: ["INSURANCE_PROVIDER"] },
+  FUNDING_OPPORTUNITIES: {
+    type: "FUNDING_OPPORTUNITIES",
+    title: "Funding Opportunities",
+    gridSpan: 2,
+    defaultFor: ["FINANCE_PARTNER", "INVESTOR"],
+  },
 };
 
 export type WidgetLayoutItem = {
@@ -70,8 +133,35 @@ export type WidgetLayoutItem = {
 // dashboard-level widget the way the others are. It stays registered so a
 // future "view this RFQ's audit trail" surface can add it to a layout, and
 // so this dashboard's per-RFQ links can enable it, but it's opt-in.
-export function defaultLayoutFor(organizationType: string): WidgetLayoutItem[] {
-  const orgType = organizationType === "EXPORTER" ? "EXPORTER" : "IMPORTER";
-  const types = WIDGET_TYPES.filter((type) => WIDGET_REGISTRY[type].defaultFor.includes(orgType));
+//
+// Switches explicitly on all 8 organization types modeled by
+// organizationTypeEnum (src/db/schema/identity.ts) — no silent fallback
+// bucket that collapses an unhandled type into another one's layout.
+export function defaultLayoutFor(organizationType: OrganizationType): WidgetLayoutItem[] {
+  let types: WidgetType[];
+  switch (organizationType) {
+    case "EXPORTER":
+      types = ["STS", "KYC", "LOAN", "RFQS", "SHIPMENTS", "REVENUE", "NOTIFICATIONS"];
+      break;
+    case "IMPORTER":
+      types = ["KYC", "RFQS", "SHIPMENTS", "NOTIFICATIONS"];
+      break;
+    case "FREIGHT_FORWARDER":
+      types = ["KYC", "NOTIFICATIONS", "SHIPMENTS"];
+      break;
+    case "CUSTOMS_BROKER":
+      types = ["KYC", "NOTIFICATIONS", "CUSTOMS_QUEUE"];
+      break;
+    case "WAREHOUSE_PROVIDER":
+      types = ["KYC", "NOTIFICATIONS", "INVENTORY"];
+      break;
+    case "INSURANCE_PROVIDER":
+      types = ["KYC", "NOTIFICATIONS", "POLICIES"];
+      break;
+    case "FINANCE_PARTNER":
+    case "INVESTOR":
+      types = ["KYC", "NOTIFICATIONS", "FUNDING_OPPORTUNITIES"];
+      break;
+  }
   return types.map((type, index) => ({ id: type, type, visible: true, order: index }));
 }

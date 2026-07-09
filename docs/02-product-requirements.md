@@ -225,17 +225,32 @@ Verification badge, certifications, trade history, employees, warehouses,
 products, STS. **Acceptance criteria**: profile is publicly viewable (minus
 sensitive fields) without authentication, to support discovery.
 
-### Widget-Based Dashboard *(v2.0 — Task 5/8)*
+### Widget-Based Dashboard *(v2.0 — Task 5/8, role/type-aware)*
 `/dashboard` renders a configurable grid of widgets instead of one fixed
 layout per organization type: SeaSharp Trust Score, KYC/KYB, PO-Backed Trade
-Finance, RFQs, Shipments, Revenue, Notifications, plus Calendar and Tasks
-placeholders for domains not built yet. Each widget is independently
+Finance, RFQs, Shipments, Revenue, Notifications, plus Calendar/Tasks and a
+set of ecosystem-role stubs (Customs Queue, Inventory, Policies, Funding
+Opportunities) for domains not built yet. Each widget is independently
 registered (`src/components/dashboard/widgets/registry.ts`) so adding a new
 one never touches the page's layout logic. **Acceptance criteria**:
 - Every non-placeholder widget (STS, KYC, Loan, RFQs, Shipments, Revenue,
   Notifications) renders real data from its owning domain table — no widget
-  fabricates numbers it can't back with a query. Calendar and Tasks are
-  explicitly labeled "coming soon" until a calendar/task domain exists.
+  fabricates numbers it can't back with a query. Calendar, Tasks, and the
+  ecosystem-role stubs are explicitly labeled "coming soon" until their
+  backing domain (calendar/task tables, forwarder-assignment column, customs
+  queue, warehouse inventory, insurance policy, or investable-funding-request
+  tables) exists.
+- `defaultLayoutFor` (`src/components/dashboard/widgets/registry.ts`) switches
+  explicitly on all 8 `organizationTypeEnum` values (EXPORTER, IMPORTER,
+  FREIGHT_FORWARDER, CUSTOMS_BROKER, WAREHOUSE_PROVIDER, INSURANCE_PROVIDER,
+  FINANCE_PARTNER, INVESTOR) — no type is silently collapsed into another
+  type's layout, and each gets KYC + Notifications plus a type-appropriate
+  default (real RFQs/Shipments where the query is honestly scoped, a stub
+  otherwise).
+- The dashboard header shows a human-readable label for the signed-in
+  organization's actual type (e.g. "Customs Broker Dashboard", "Investor
+  Dashboard") — never a generic fallback — plus a role badge (Owner / Admin /
+  Member) next to the organization name.
 - A user can show/hide and reorder widgets from the dashboard itself; the
   resulting layout persists per-profile-per-organization (`dashboard_layouts`
   table) and is restored on the next sign-in / session, not just for the
@@ -245,6 +260,25 @@ one never touches the page's layout logic. **Acceptance criteria**:
   see RFQs first) rather than an empty dashboard.
 - Hiding a widget never deletes its underlying data — toggling it back on
   immediately shows the same live data again.
+
+### Team & Integrations Panel *(v2.0, Owner/Admin only)*
+Owners and Admins (the seeded RBAC role names in
+`drizzle/manual/02_seed_system_roles.sql`) see a "Team & Integrations" panel
+on `/dashboard` (`src/components/dashboard/TeamIntegrationsPanel.tsx`) for
+managing API keys and webhook endpoints, backed by the existing
+`/api/api-keys` and `/api/webhook-endpoints` routes (list, create, revoke) —
+no new backend surface, just a first frontend for CRUD that previously had
+none. **Acceptance criteria**:
+- The panel is gated on `organization.roleName` (Owner/Admin), not on
+  organization type — it is a per-membership permission concern, so every
+  org type can have it if the signed-in member's role qualifies.
+- A Member-role profile never receives the panel's markup at all (not just
+  visually hidden) — `src/app/dashboard/page.tsx` only renders
+  `<TeamIntegrationsPanel />` when the role check passes.
+- Creating an API key or webhook endpoint shows its plaintext key /
+  signing secret exactly once (matching the existing `/api/api-keys` and
+  `/api/webhook-endpoints` one-time-reveal behavior); revoking either is
+  immediate and reflected in the list without a page reload.
 
 ### Admin Dashboard *(Phase 5, MVP subset earlier as needed)*
 User/company/country/HS-code/tariff management, marketplace moderation,

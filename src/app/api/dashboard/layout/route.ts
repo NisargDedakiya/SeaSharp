@@ -5,7 +5,7 @@ import { withApiHandler, AppError } from "@/lib/api-handler";
 import { getSessionActor } from "@/core/identity/session";
 import { serviceDb } from "@/db/client";
 import { dashboardLayouts } from "@/db/schema";
-import { WIDGET_TYPES, defaultLayoutFor } from "@/components/dashboard/widgets/registry";
+import { WIDGET_TYPES, defaultLayoutFor, type OrganizationType } from "@/components/dashboard/widgets/registry";
 
 const layoutSchema = z.object({
   widgets: z.array(
@@ -34,7 +34,7 @@ export const GET = withApiHandler(async () => {
   });
 
   return NextResponse.json({
-    widgets: existing?.widgets ?? defaultLayoutFor(actor.organization.type),
+    widgets: existing?.widgets ?? defaultLayoutFor(actor.organization.type as OrganizationType),
   });
 });
 

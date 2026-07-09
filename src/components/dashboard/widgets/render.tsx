@@ -10,7 +10,15 @@ import { RfqsWidget } from "./RfqsWidget";
 import { ShipmentsWidget } from "./ShipmentsWidget";
 import { RevenueWidget } from "./RevenueWidget";
 import { NotificationsWidget } from "./NotificationsWidget";
-import { CalendarWidget, TasksWidget } from "./StubWidgets";
+import {
+  CalendarWidget,
+  TasksWidget,
+  ShipmentsStubWidget,
+  CustomsQueueWidget,
+  InventoryWidget,
+  PoliciesWidget,
+  FundingOpportunitiesWidget,
+} from "./StubWidgets";
 
 export type WidgetRenderContext = {
   organization: CurrentOrganization;
@@ -45,7 +53,13 @@ export async function renderWidget(type: WidgetType, ctx: WidgetRenderContext): 
     case "RFQS":
       return <RfqsWidget organization={ctx.organization} />;
     case "SHIPMENTS":
-      return <ShipmentsWidget organization={ctx.organization} />;
+      // Real query is exporter/importer-party-scoped only (see
+      // registry.ts's SHIPMENTS comment) — freight forwarders get an
+      // honest stub instead of a fabricated forwarder view.
+      if (ctx.organization.type === "EXPORTER" || ctx.organization.type === "IMPORTER") {
+        return <ShipmentsWidget organization={ctx.organization} />;
+      }
+      return <ShipmentsStubWidget />;
     case "REVENUE":
       return ctx.organization.type === "EXPORTER" ? <RevenueWidget organization={ctx.organization} /> : null;
     case "NOTIFICATIONS":
@@ -54,6 +68,14 @@ export async function renderWidget(type: WidgetType, ctx: WidgetRenderContext): 
       return <CalendarWidget />;
     case "TASKS":
       return <TasksWidget />;
+    case "CUSTOMS_QUEUE":
+      return <CustomsQueueWidget />;
+    case "INVENTORY":
+      return <InventoryWidget />;
+    case "POLICIES":
+      return <PoliciesWidget />;
+    case "FUNDING_OPPORTUNITIES":
+      return <FundingOpportunitiesWidget />;
     case "AUDIT_TIMELINE":
       // Needs a specific entityType/entityId that a generic dashboard
       // layout doesn't have — see registry.ts's comment. Not rendered
