@@ -52,37 +52,39 @@ export function BidList({
   const sorted = [...bids].sort((a, b) => a.pricePerUnit - b.pricePerUnit);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">Bids ({totalBidCount})</h2>
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">Bids ({totalBidCount})</h2>
+      {error && (
+        <p className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p>
+      )}
 
       {sorted.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">No bids yet.</p>
+        <p className="mt-3 text-sm text-ink-500">No bids yet.</p>
       ) : (
         <ul className="mt-4 space-y-3">
           {sorted.map((bid) => (
             <li
               key={bid.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-100 bg-cream-50 p-4"
             >
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-100">
+                  <span className="font-medium text-ink-900">
                     {bid.exporter.companyName ?? bid.exporter.name}
                   </span>
                   <StsBadge score={bid.exporter.stsScore} />
                 </div>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-ink-500">
                   ${bid.pricePerUnit}/unit
                   {bid.message ? ` — "${bid.message}"` : ""}
                 </p>
-                <p className="text-xs text-slate-500">{bid.status}</p>
+                <p className="text-xs text-ink-400">{bid.status}</p>
               </div>
               {rfqStatus === "OPEN" && (
                 <button
                   onClick={() => handleAward(bid.id)}
                   disabled={awardingId === bid.id}
-                  className="rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
+                  className="rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-ink-800 disabled:opacity-50"
                 >
                   {awardingId === bid.id ? "Awarding..." : "Award"}
                 </button>

@@ -32,20 +32,20 @@ export async function RevenueWidget({ organization }: { organization: CurrentOrg
     .reduce((sum, l) => sum + Number(l.approvedAmount), 0);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">Revenue</h2>
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">Revenue</h2>
       <dl className="mt-3 space-y-2 text-sm">
         <div className="flex justify-between">
-          <dt className="text-slate-400">Escrow volume</dt>
-          <dd className="text-slate-100">${escrowVolume.toLocaleString()}</dd>
+          <dt className="text-ink-400">Escrow volume</dt>
+          <dd className="font-semibold text-gold-600">${escrowVolume.toLocaleString()}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-slate-400">Released</dt>
-          <dd className="text-slate-100">${releasedVolume.toLocaleString()}</dd>
+          <dt className="text-ink-400">Released</dt>
+          <dd className="font-semibold text-gold-600">${releasedVolume.toLocaleString()}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-slate-400">STS-gated loan volume</dt>
-          <dd className="text-slate-100">${stsLoanVolume.toLocaleString()}</dd>
+          <dt className="text-ink-400">STS-gated loan volume</dt>
+          <dd className="font-semibold text-gold-600">${stsLoanVolume.toLocaleString()}</dd>
         </div>
       </dl>
     </div>

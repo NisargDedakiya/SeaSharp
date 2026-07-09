@@ -23,10 +23,10 @@ export async function RfqsWidget({ organization }: { organization: CurrentOrgani
     const rfqById = new Map(bidRfqs.map((r) => [r.id, r]));
 
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-        <h2 className="font-semibold text-slate-100">My Bids</h2>
+      <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+        <h2 className="font-semibold text-ink-900">My Bids</h2>
         {myBids.length === 0 ? (
-          <p className="mt-2 text-sm text-slate-500">No bids yet.</p>
+          <p className="mt-2 text-sm text-ink-400">No bids yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
             {myBids.map((bid) => {
@@ -34,7 +34,7 @@ export async function RfqsWidget({ organization }: { organization: CurrentOrgani
               if (!rfq) return null;
               return (
                 <li key={bid.id}>
-                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
+                  <Link href={`/marketplace/${rfq.id}`} className="text-sm text-ink-700 hover:text-gold-600">
                     {rfq.product} — ${Number(bid.pricePerUnit)}/{rfq.unit} · {bid.status}
                   </Link>
                 </li>
@@ -68,20 +68,20 @@ export async function RfqsWidget({ organization }: { organization: CurrentOrgani
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-slate-100">My RFQs</h2>
-        <Link href="/marketplace/new" className="text-xs font-semibold text-sky-400 hover:text-sky-300">
+        <h2 className="font-semibold text-ink-900">My RFQs</h2>
+        <Link href="/marketplace/new" className="text-xs font-semibold text-gold-600 hover:text-gold-500">
           Post an RFQ
         </Link>
       </div>
       {importerRfqs.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">You haven&apos;t posted any RFQs yet.</p>
+        <p className="mt-2 text-sm text-ink-400">You haven&apos;t posted any RFQs yet.</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {importerRfqs.map((rfq) => (
             <li key={rfq.id}>
-              <Link href={`/marketplace/${rfq.id}`} className="text-sm text-slate-300 hover:text-sky-400">
+              <Link href={`/marketplace/${rfq.id}`} className="text-sm text-ink-700 hover:text-gold-600">
                 {rfq.product} — {rfq.status} · {importerBidCountByRfqId.get(rfq.id) ?? 0} bids
               </Link>
             </li>

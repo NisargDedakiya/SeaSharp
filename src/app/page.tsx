@@ -75,14 +75,14 @@ export default function Home() {
   return (
     <main>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24">
+      <section className="relative overflow-hidden border-b border-ink-100 bg-gradient-to-b from-cream-100 to-cream-50 px-6 py-24">
         <div
           aria-hidden
-          className="animate-aurora pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-sky-500/20 blur-3xl"
+          className="animate-aurora pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-gold-400/20 blur-3xl"
         />
         <div
           aria-hidden
-          className="animate-aurora pointer-events-none absolute -bottom-40 right-0 h-96 w-96 rounded-full bg-sky-400/10 blur-3xl [animation-delay:-6s]"
+          className="animate-aurora pointer-events-none absolute -bottom-40 right-0 h-96 w-96 rounded-full bg-gold-400/10 blur-3xl [animation-delay:-6s]"
         />
 
         <div className="relative">
@@ -133,18 +133,18 @@ export default function Home() {
         <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ECOSYSTEM.map((e) => (
             <RevealStaggerItem key={e.role}>
-              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+              <div className="group h-full rounded-xl border border-ink-100 bg-white p-5 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-premium-lg">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-slate-100">{e.role}</h3>
+                  <h3 className="font-semibold text-ink-900">{e.role}</h3>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                      e.live ? "bg-sky-500/15 text-sky-400" : "bg-slate-800 text-slate-400"
+                      e.live ? "bg-gold-500/15 text-gold-600" : "bg-cream-200 text-ink-400"
                     }`}
                   >
                     {e.live ? "Live" : "Coming Soon"}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{e.body}</p>
+                <p className="mt-2 text-sm text-ink-500">{e.body}</p>
               </div>
             </RevealStaggerItem>
           ))}
@@ -152,7 +152,7 @@ export default function Home() {
       </section>
 
       {/* Core platform modules */}
-      <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
+      <section className="border-t border-ink-100 bg-cream-100 px-6 py-24">
         <Reveal>
           <SectionHeading
             eyebrow="Core Platform Modules"
@@ -269,28 +269,28 @@ export default function Home() {
         <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {AI_MODULES.map((m) => (
             <RevealStaggerItem key={m.name}>
-              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+              <div className="group h-full rounded-xl border border-ink-100 bg-white p-5 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-premium-lg">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-sky-400">{m.name}</h3>
-                  <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-xs font-medium text-sky-400">
+                  <h3 className="font-semibold text-gold-600">{m.name}</h3>
+                  <span className="shrink-0 rounded-full bg-gold-500/15 px-2 py-0.5 text-xs font-medium text-gold-600">
                     Live
                   </span>
                 </div>
-                <p className="text-xs uppercase tracking-wide text-slate-500">{m.tag}</p>
-                <p className="mt-2 text-sm text-slate-400">{m.body}</p>
+                <p className="text-xs uppercase tracking-wide text-ink-400">{m.tag}</p>
+                <p className="mt-2 text-sm text-ink-500">{m.body}</p>
               </div>
             </RevealStaggerItem>
           ))}
           {AI_MODULES_ROADMAP.map((m) => (
             <RevealStaggerItem key={m.name}>
-              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+              <div className="group h-full rounded-xl border border-ink-100 bg-white p-5 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-premium-lg">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-slate-300">{m.name}</h3>
-                  <span className="shrink-0 rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-400">
+                  <h3 className="font-semibold text-ink-700">{m.name}</h3>
+                  <span className="shrink-0 rounded-full bg-cream-200 px-2 py-0.5 text-xs font-medium text-ink-400">
                     Roadmap
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-slate-400">{m.body}</p>
+                <p className="mt-2 text-sm text-ink-500">{m.body}</p>
               </div>
             </RevealStaggerItem>
           ))}
@@ -298,7 +298,7 @@ export default function Home() {
       </section>
 
       {/* STS */}
-      <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
+      <section className="border-t border-ink-100 bg-cream-100 px-6 py-24">
         <Reveal>
           <SectionHeading
             eyebrow="SeaSharp Trust Score"
@@ -360,11 +360,11 @@ export default function Home() {
           </RevealStaggerItem>
         </RevealStagger>
 
-        <Reveal className="mx-auto mt-12 max-w-4xl rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-          <h3 className="font-semibold text-slate-100">Revenue Model</h3>
+        <Reveal className="mx-auto mt-12 max-w-4xl rounded-xl border border-ink-100 bg-white p-6 shadow-premium">
+          <h3 className="font-semibold text-ink-900">Revenue Model</h3>
           <div className="mt-3 flex flex-wrap gap-2">
             {REVENUE_STREAMS.map((r) => (
-              <span key={r} className="rounded-full bg-slate-800 px-3 py-1 text-xs text-slate-300">
+              <span key={r} className="rounded-full bg-cream-200 px-3 py-1 text-xs text-ink-700">
                 {r}
               </span>
             ))}
@@ -373,7 +373,7 @@ export default function Home() {
       </section>
 
       {/* Roadmap */}
-      <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
+      <section className="border-t border-ink-100 bg-cream-100 px-6 py-24">
         <Reveal>
           <SectionHeading
             eyebrow="Roadmap"
@@ -384,25 +384,25 @@ export default function Home() {
         <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {ROADMAP.map((p) => (
             <RevealStaggerItem key={p.phase}>
-              <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-5 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
+              <div className="group h-full rounded-xl border border-ink-100 bg-white p-5 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-premium-lg">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-sky-400">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gold-600">
                     {p.phase}
                   </p>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                       p.status === "Live"
-                        ? "bg-sky-500/15 text-sky-400"
-                        : "bg-slate-800 text-slate-400"
+                        ? "bg-gold-500/15 text-gold-600"
+                        : "bg-cream-200 text-ink-400"
                     }`}
                   >
                     {p.status}
                   </span>
                 </div>
-                <h3 className="mt-1 font-semibold text-slate-100">{p.title}</h3>
+                <h3 className="mt-1 font-semibold text-ink-900">{p.title}</h3>
                 <ul className="mt-3 space-y-1.5">
                   {p.items.map((item) => (
-                    <li key={item} className="text-sm text-slate-400">
+                    <li key={item} className="text-sm text-ink-500">
                       → {item}
                     </li>
                   ))}
@@ -414,7 +414,7 @@ export default function Home() {
       </section>
 
       {/* FAQ */}
-      <section className="border-t border-slate-800 bg-slate-900/20 px-6 py-24">
+      <section className="border-t border-ink-100 bg-cream-100 px-6 py-24">
         <Reveal>
           <SectionHeading
             eyebrow="FAQ"
@@ -428,20 +428,20 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="relative overflow-hidden border-t border-slate-800 bg-gradient-to-b from-slate-900 to-slate-950 px-6 py-24 text-center">
+      <section className="relative overflow-hidden border-t border-ink-100 bg-gradient-to-b from-cream-100 to-cream-50 px-6 py-24 text-center">
         <div
           aria-hidden
-          className="animate-aurora pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-sky-500/15 blur-3xl"
+          className="animate-aurora pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-gold-400/15 blur-3xl"
         />
         <Reveal className="relative">
-          <h2 className="text-3xl font-bold text-slate-50">One platform. Every trade. Anywhere in the world.</h2>
-          <p className="mx-auto mt-4 max-w-xl text-slate-400">
+          <h2 className="text-3xl font-bold text-ink-900">One platform. Every trade. Anywhere in the world.</h2>
+          <p className="mx-auto mt-4 max-w-xl text-ink-500">
             Phase 1 starts with one corridor: India → UAE agricultural exports.
           </p>
           <div className="mt-8 flex justify-center gap-4">
             <Link
               href="/register"
-              className="rounded-md bg-gradient-to-r from-sky-500 to-sky-400 px-6 py-3 text-sm font-semibold text-slate-950 shadow-[0_0_30px_-6px_rgba(56,189,248,0.6)] transition-transform duration-200 hover:scale-[1.03] active:scale-[0.98]"
+              className="rounded-md bg-ink-900 px-6 py-3 text-sm font-semibold text-cream-50 shadow-premium-lg transition-transform duration-200 hover:bg-ink-800 hover:scale-[1.03] active:scale-[0.98]"
             >
               Join as Exporter or Importer
             </Link>
@@ -449,7 +449,7 @@ export default function Home() {
         </Reveal>
       </section>
 
-      <footer className="border-t border-slate-800 px-6 py-10 text-center text-sm text-slate-500">
+      <footer className="border-t border-ink-100 px-6 py-10 text-center text-sm text-ink-500">
         SeaSharp — The Global Trade Infrastructure Platform · Founder: Nisarg Dedakiya
       </footer>
     </main>

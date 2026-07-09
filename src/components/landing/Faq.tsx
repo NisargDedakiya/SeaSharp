@@ -33,7 +33,7 @@ export function Faq() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <div className="mx-auto mt-12 max-w-3xl divide-y divide-slate-800 rounded-xl border border-slate-800 bg-slate-900/40">
+    <div className="mx-auto mt-12 max-w-3xl divide-y divide-ink-100 rounded-xl border border-ink-100 bg-white shadow-premium">
       {FAQS.map((item, i) => {
         const isOpen = openIndex === i;
         return (
@@ -44,13 +44,13 @@ export function Faq() {
               aria-expanded={isOpen}
               className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left"
             >
-              <span className="font-medium text-slate-100">{item.q}</span>
+              <span className="font-medium text-ink-900">{item.q}</span>
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={2}
-                className={`h-4 w-4 shrink-0 text-sky-400 transition-transform duration-300 ${
+                className={`h-4 w-4 shrink-0 text-gold-600 transition-transform duration-300 ${
                   isOpen ? "rotate-180" : ""
                 }`}
               >
@@ -63,7 +63,7 @@ export function Faq() {
               }`}
             >
               <div className="overflow-hidden">
-                <p className="px-6 pb-4 text-sm leading-relaxed text-slate-400">{item.a}</p>
+                <p className="px-6 pb-4 text-sm leading-relaxed text-ink-500">{item.a}</p>
               </div>
             </div>
           </div>

@@ -52,23 +52,23 @@ export function BidPanel({
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">
         {existingBid ? "Update Your Bid" : "Submit a Blind Bid"}
       </h2>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1 text-sm text-ink-500">
         Bids are blind — other exporters can&apos;t see your price.
       </p>
 
       {existingBid?.aiSuggestedPrice && (
-        <p className="mt-3 rounded-md bg-sky-500/10 px-3 py-2 text-sm text-sky-400">
+        <p className="mt-3 rounded-md bg-gold-500/10 px-3 py-2 text-sm text-gold-600">
           BidSense suggests ${existingBid.aiSuggestedPrice}/{unit} to stay competitive.
         </p>
       )}
 
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-300">Your price per {unit} (USD)</span>
+          <span className="text-sm text-ink-700">Your price per {unit} (USD)</span>
           <input
             type="number"
             min="0.01"
@@ -76,23 +76,25 @@ export function BidPanel({
             required
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm text-slate-300">Message (optional)</span>
+          <span className="text-sm text-ink-700">Message (optional)</span>
           <textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={2}
-            className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+            className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
           />
         </label>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p>
+        )}
         <button
           type="submit"
           disabled={loading}
-          className="self-start rounded-md bg-sky-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
+          className="self-start rounded-md bg-ink-900 px-5 py-2 text-sm font-semibold text-cream-50 hover:bg-ink-800 disabled:opacity-50"
         >
           {loading ? "Submitting..." : existingBid ? "Update Bid" : "Submit Bid"}
         </button>

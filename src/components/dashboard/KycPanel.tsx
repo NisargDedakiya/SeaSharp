@@ -23,21 +23,21 @@ export function KycPanel({ kycStatus }: { kycStatus: string }) {
 
   if (kycStatus === "VERIFIED") {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-        <h2 className="font-semibold text-slate-100">KYC / KYB</h2>
-        <p className="mt-2 text-sm text-sky-400">✓ Verified by SupplierRadar</p>
+      <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+        <h2 className="font-semibold text-ink-900">KYC / KYB</h2>
+        <p className="mt-2 text-sm text-emerald-700">✓ Verified by SupplierRadar</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">KYC / KYB</h2>
-      <p className="mt-2 text-sm text-slate-400">
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">KYC / KYB</h2>
+      <p className="mt-2 text-sm text-ink-500">
         Status: {kycStatus}. Complete your company profile then submit for verification.
       </p>
       {flags.length > 0 && (
-        <ul className="mt-2 list-inside list-disc text-sm text-red-400">
+        <ul className="mt-2 list-inside list-disc text-sm text-red-600">
           {flags.map((f) => (
             <li key={f}>{f}</li>
           ))}
@@ -46,7 +46,7 @@ export function KycPanel({ kycStatus }: { kycStatus: string }) {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="mt-3 rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
+        className="mt-3 rounded-md bg-ink-900 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-ink-800 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-gold-500"
       >
         {loading ? "Checking..." : "Submit for Verification"}
       </button>

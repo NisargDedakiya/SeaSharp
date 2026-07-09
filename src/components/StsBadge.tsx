@@ -1,10 +1,10 @@
 import { tierForScore, STS_TIER_LABELS } from "@/core/finance/sts";
 
 const TIER_COLORS: Record<string, string> = {
-  NEW: "bg-slate-700 text-slate-200",
-  VERIFIED: "bg-sky-500/15 text-sky-400",
-  RELIABLE: "bg-amber-500/15 text-amber-400",
-  TRUSTED_PARTNER: "bg-emerald-500/15 text-emerald-400",
+  NEW: "bg-ink-100 text-ink-700",
+  VERIFIED: "bg-gold-500/15 text-gold-600",
+  RELIABLE: "bg-amber-100 text-amber-700",
+  TRUSTED_PARTNER: "bg-emerald-100 text-emerald-700",
 };
 
 export function StsBadge({ score }: { score: number }) {

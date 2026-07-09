@@ -56,22 +56,22 @@ export function AuditTimelineWidget({
   }, [entityType, entityId]);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">Audit Timeline</h2>
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">Audit Timeline</h2>
 
-      {loading && <p className="mt-2 text-sm text-slate-500">Loading timeline...</p>}
-      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
+      {loading && <p className="mt-2 text-sm text-ink-400">Loading timeline...</p>}
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
 
       {!loading && !error && timeline && timeline.length === 0 && (
-        <p className="mt-2 text-sm text-slate-500">No activity recorded yet.</p>
+        <p className="mt-2 text-sm text-ink-400">No activity recorded yet.</p>
       )}
 
       {!loading && !error && timeline && timeline.length > 0 && (
-        <ol className="mt-4 space-y-3 border-l border-slate-800 pl-4">
+        <ol className="mt-4 space-y-3 border-l border-ink-100 pl-4">
           {timeline.map((entry, index) => (
             <li key={`${entry.timestamp}-${index}`} className="text-sm">
-              <p className="text-slate-100">{entry.description}</p>
-              <p className="text-xs text-slate-500">
+              <p className="text-ink-900">{entry.description}</p>
+              <p className="text-xs text-ink-400">
                 {new Date(entry.timestamp).toLocaleString()}
                 {entry.actor.name ? ` · ${entry.actor.name}` : ""}
               </p>

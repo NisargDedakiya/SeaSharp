@@ -75,7 +75,7 @@ export function MarketplaceBrowser({ rfqs }: { rfqs: RfqListItem[] }) {
             fill="none"
             stroke="currentColor"
             strokeWidth={2}
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400"
           >
             <circle cx="11" cy="11" r="7" />
             <path strokeLinecap="round" d="M21 21l-4.3-4.3" />
@@ -84,13 +84,13 @@ export function MarketplaceBrowser({ rfqs }: { rfqs: RfqListItem[] }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by product, origin, destination, or importer..."
-            className="w-full rounded-md border border-slate-700 bg-slate-950 py-2.5 pl-9 pr-3 text-sm text-slate-100 placeholder:text-slate-500 focus:border-sky-500/60 focus:outline-none"
+            className="w-full rounded-md border border-ink-100 bg-white py-2.5 pl-9 pr-3 text-sm text-ink-900 placeholder:text-ink-400 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500"
           />
         </div>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortValue)}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-slate-100 focus:border-sky-500/60 focus:outline-none"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500"
         >
           {SORTS.map((s) => (
             <option key={s.value} value={s.value}>
@@ -100,13 +100,13 @@ export function MarketplaceBrowser({ rfqs }: { rfqs: RfqListItem[] }) {
         </select>
       </div>
 
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 text-xs text-ink-400">
         {filtered.length} of {rfqs.length} open RFQ{rfqs.length === 1 ? "" : "s"}
       </p>
 
       <div className="mt-4 space-y-4">
         {filtered.length === 0 && (
-          <p className="rounded-xl border border-slate-800 bg-slate-900/40 p-6 text-center text-slate-500">
+          <p className="rounded-xl border border-ink-100 bg-white p-6 text-center text-ink-500 shadow-premium">
             No RFQs match &quot;{query}&quot;. Try a different search.
           </p>
         )}
@@ -117,32 +117,32 @@ export function MarketplaceBrowser({ rfqs }: { rfqs: RfqListItem[] }) {
             <Link
               key={rfq.id}
               href={`/marketplace/${rfq.id}`}
-              className="group block rounded-xl border border-slate-800 bg-slate-900/40 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]"
+              className="group block rounded-2xl border border-ink-100 bg-white p-6 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/60 hover:shadow-premium-lg"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-semibold text-slate-100">{rfq.product}</h2>
+                  <h2 className="text-lg font-semibold text-ink-900">{rfq.product}</h2>
                   {isNew && (
-                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                    <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
                       New
                     </span>
                   )}
                 </div>
-                <span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-400">
+                <span className="rounded-full bg-gold-500/10 px-3 py-1 text-xs font-medium text-gold-600">
                   {rfq.bidCount} bid{rfq.bidCount === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-slate-400">
+              <p className="mt-1 text-sm text-ink-500">
                 {rfq.volume.toLocaleString()} {rfq.unit} · {countryName(rfq.originCountry)} →{" "}
                 {countryName(rfq.destinationCountry)} ·{" "}
-                <span className="font-medium text-slate-200">
+                <span className="font-medium text-ink-700">
                   target ${rfq.targetPricePerUnit}/{rfq.unit}
                 </span>
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-400">
                 <span>Posted by {rfq.importer.companyName ?? rfq.importer.name}</span>
                 {isVerified && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-gold-500/10 px-2 py-0.5 text-gold-600">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-3 w-3">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>

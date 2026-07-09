@@ -77,22 +77,22 @@ export function DashboardGrid({ initialLayout, widgets }: { initialLayout: Widge
   return (
     <div>
       <div className="mb-4 flex items-center justify-end gap-3">
-        {saving && <span className="text-xs text-slate-500">Saving...</span>}
+        {saving && <span className="text-xs text-ink-400">Saving...</span>}
         <button
           onClick={() => setEditing((v) => !v)}
-          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:border-slate-500"
+          className="rounded-md border border-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:border-ink-400 focus:outline-none focus:ring-2 focus:ring-gold-500"
         >
           {editing ? "Done" : "Customize widgets"}
         </button>
       </div>
 
       {editing && (
-        <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-          <p className="mb-2 text-xs text-slate-500">Show/hide and reorder widgets. Drag to reorder.</p>
+        <div className="mb-6 rounded-xl border border-ink-100 bg-cream-100 p-4">
+          <p className="mb-2 text-xs text-ink-400">Show/hide and reorder widgets. Drag to reorder.</p>
           <ul className="space-y-1">
             {ordered.map((item, index) => (
-              <li key={item.id} className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-slate-800/50">
-                <label className="flex items-center gap-2 text-slate-300">
+              <li key={item.id} className="flex items-center justify-between rounded-md px-2 py-1 text-sm hover:bg-cream-200">
+                <label className="flex items-center gap-2 text-ink-700">
                   <input type="checkbox" checked={item.visible} onChange={() => toggleVisible(item.id)} />
                   {widgetById.get(item.id)?.title ?? item.type}
                 </label>
@@ -100,7 +100,7 @@ export function DashboardGrid({ initialLayout, widgets }: { initialLayout: Widge
                   <button
                     disabled={index === 0}
                     onClick={() => move(item.id, -1)}
-                    className="rounded px-1.5 text-slate-400 hover:text-slate-100 disabled:opacity-30"
+                    className="rounded px-1.5 text-ink-400 hover:text-ink-900 disabled:opacity-30"
                     aria-label="Move up"
                   >
                     ↑
@@ -108,7 +108,7 @@ export function DashboardGrid({ initialLayout, widgets }: { initialLayout: Widge
                   <button
                     disabled={index === ordered.length - 1}
                     onClick={() => move(item.id, 1)}
-                    className="rounded px-1.5 text-slate-400 hover:text-slate-100 disabled:opacity-30"
+                    className="rounded px-1.5 text-ink-400 hover:text-ink-900 disabled:opacity-30"
                     aria-label="Move down"
                   >
                     ↓
@@ -134,7 +134,7 @@ export function DashboardGrid({ initialLayout, widgets }: { initialLayout: Widge
                 onDragOver={(e) => editing && e.preventDefault()}
                 onDrop={() => handleDrop(item.id)}
                 className={`${SPAN_CLASS[widget.gridSpan]} ${
-                  editing ? "cursor-move rounded-xl ring-1 ring-slate-700" : ""
+                  editing ? "cursor-move rounded-xl ring-1 ring-ink-100" : ""
                 }`}
               >
                 {widget.node}

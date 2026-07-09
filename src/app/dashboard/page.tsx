@@ -105,10 +105,10 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-16">
-      <h1 className="text-3xl font-bold text-slate-50">
+      <h1 className="text-3xl font-bold text-ink-900">
         {organization.type === "EXPORTER" ? "Exporter Dashboard" : "Importer Dashboard"}
       </h1>
-      <p className="mt-1 text-slate-400">{organization.name}</p>
+      <p className="mt-1 text-ink-500">{organization.name}</p>
 
       <div className="mt-8">
         <DashboardGrid initialLayout={layout} widgets={widgets} />

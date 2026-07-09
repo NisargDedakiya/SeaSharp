@@ -14,16 +14,16 @@ export async function NotificationsWidget({ profileId }: { profileId: string }) 
   });
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">Notifications</h2>
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">Notifications</h2>
       {recent.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">No notifications yet.</p>
+        <p className="mt-2 text-sm text-ink-400">No notifications yet.</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {recent.map((n) => (
             <li key={n.id} className="text-sm">
-              <p className={n.readAt ? "text-slate-400" : "text-slate-100"}>{n.type}</p>
-              <p className="text-xs text-slate-500">{new Date(n.createdAt).toLocaleString()}</p>
+              <p className={n.readAt ? "text-ink-400" : "text-ink-900"}>{n.type}</p>
+              <p className="text-xs text-ink-400">{new Date(n.createdAt).toLocaleString()}</p>
             </li>
           ))}
         </ul>

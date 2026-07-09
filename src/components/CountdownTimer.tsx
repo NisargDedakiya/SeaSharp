@@ -18,6 +18,6 @@ export function CountdownTimer({ rfqId, deadline }: { rfqId: string; deadline: s
   }, [tick]);
 
   return (
-    <span className="font-medium text-slate-200">{formatTimeRemaining(deadline, now)}</span>
+    <span className="font-medium text-ink-700">{formatTimeRemaining(deadline, now)}</span>
   );
 }

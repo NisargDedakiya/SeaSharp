@@ -28,12 +28,12 @@ export function HowItWorks() {
     <RevealStagger className="mx-auto mt-12 grid max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {STEPS.map((s) => (
         <RevealStaggerItem key={s.step}>
-          <div className="group h-full rounded-xl border border-slate-800 bg-slate-900/40 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/40 hover:bg-slate-900/70 hover:shadow-[0_0_30px_-14px_rgba(56,189,248,0.5)]">
-            <span className="text-3xl font-bold text-sky-500/30 transition-colors duration-300 group-hover:text-sky-400/60">
+          <div className="group h-full rounded-xl border border-ink-100 bg-white p-6 shadow-premium transition-all duration-300 hover:-translate-y-1 hover:border-gold-400/50 hover:shadow-premium-lg">
+            <span className="text-3xl font-bold text-gold-500/30 transition-colors duration-300 group-hover:text-gold-500/70">
               {s.step}
             </span>
-            <h3 className="mt-3 font-semibold text-slate-100">{s.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-slate-400">{s.body}</p>
+            <h3 className="mt-3 font-semibold text-ink-900">{s.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-ink-500">{s.body}</p>
           </div>
         </RevealStaggerItem>
       ))}

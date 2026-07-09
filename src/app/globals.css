@@ -7,8 +7,8 @@ html {
 }
 
 ::selection {
-  background-color: rgb(56 189 248 / 0.35);
-  color: #f0f9ff;
+  background-color: rgb(184 144 47 / 0.2);
+  color: #2a251f;
 }
 
 @layer utilities {

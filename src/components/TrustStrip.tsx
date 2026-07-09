@@ -33,13 +33,13 @@ export function TrustStrip({ className = "" }: { className?: string }) {
   return (
     <div className={`flex flex-wrap items-center justify-center gap-x-8 gap-y-3 ${className}`}>
       {BADGES.map((badge) => (
-        <div key={badge.label} className="flex items-center gap-2 text-sm text-slate-400">
+        <div key={badge.label} className="flex items-center gap-2 text-sm text-ink-500">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth={1.75}
-            className="h-4 w-4 shrink-0 text-sky-400"
+            className="h-4 w-4 shrink-0 text-gold-600"
           >
             {badge.icon}
           </svg>

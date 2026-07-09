@@ -46,8 +46,8 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto max-w-md px-6 py-16">
-      <h1 className="text-3xl font-bold text-slate-50">Create your account</h1>
-      <p className="mt-2 text-slate-400">Join as a verified exporter or importer.</p>
+      <h1 className="text-3xl font-bold text-ink-900">Create your account</h1>
+      <p className="mt-2 text-ink-500">Join as a verified exporter or importer.</p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
         <div className="flex gap-2">
@@ -58,8 +58,8 @@ export default function RegisterPage() {
               onClick={() => setForm((f) => ({ ...f, role }))}
               className={`flex-1 rounded-md border px-4 py-2 text-sm font-medium ${
                 form.role === role
-                  ? "border-sky-500 bg-sky-500/10 text-sky-400"
-                  : "border-slate-700 text-slate-300"
+                  ? "border-gold-500 bg-gold-500/10 text-gold-600"
+                  : "border-ink-100 text-ink-700"
               }`}
             >
               {role === "EXPORTER" ? "Exporter" : "Importer"}
@@ -72,7 +72,7 @@ export default function RegisterPage() {
           placeholder="Full name"
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
         />
         <input
           required
@@ -80,7 +80,7 @@ export default function RegisterPage() {
           placeholder="Email"
           value={form.email}
           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
         />
         <input
           required
@@ -89,18 +89,18 @@ export default function RegisterPage() {
           placeholder="Password (min 8 characters)"
           value={form.password}
           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
         />
         <input
           placeholder="Company name"
           value={form.companyName}
           onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100 placeholder:text-slate-600"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
         />
         <select
           value={form.country}
           onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-          className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100"
+          className="rounded-md border border-ink-100 bg-white px-3 py-2 text-ink-900 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
         >
           <option value="IN">India</option>
           <option value="AE">United Arab Emirates</option>
@@ -109,12 +109,14 @@ export default function RegisterPage() {
           <option value="CN">China</option>
         </select>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && (
+          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p>
+        )}
 
         <button
           type="submit"
           disabled={loading}
-          className="mt-2 rounded-md bg-sky-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-sky-400 disabled:opacity-50"
+          className="mt-2 rounded-md bg-ink-900 px-6 py-2.5 text-sm font-semibold text-cream-50 hover:bg-ink-800 disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create account"}
         </button>

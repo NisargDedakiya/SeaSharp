@@ -76,32 +76,40 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
       <Reveal>
-        <p className="text-sm font-semibold uppercase tracking-widest text-sky-400">
+        <p className="text-sm font-semibold uppercase tracking-widest text-gold-600">
           {countryName(rfq.originCountry)} → {countryName(rfq.destinationCountry)} · HS {rfq.hsCode}
         </p>
-        <h1 className="mt-2 text-3xl font-bold text-slate-50">{rfq.product}</h1>
-        <p className="mt-2 text-slate-400">
+        <h1 className="mt-2 text-3xl font-bold text-ink-900">{rfq.product}</h1>
+        <p className="mt-2 text-ink-500">
           {volume.toLocaleString()} {rfq.unit} · target ${targetPricePerUnit}/{rfq.unit}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
-          <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">
+          <span
+            className={`rounded-full border px-3 py-1 font-medium ${
+              rfq.status === "OPEN"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : rfq.status === "AWARDED"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700"
+            }`}
+          >
             Status: {rfq.status}
           </span>
           {rfq.status === "OPEN" && (
-            <span className="rounded-full bg-slate-800 px-3 py-1">
+            <span className="rounded-full border border-ink-100 bg-white px-3 py-1 text-ink-700">
               <CountdownTimer rfqId={rfq.id} deadline={rfq.deadline.toISOString()} />
             </span>
           )}
         </div>
 
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-5">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white p-5 shadow-premium">
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-500">Posted by</p>
+            <p className="text-xs uppercase tracking-wide text-ink-400">Posted by</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span className="font-semibold text-slate-100">{importer.name}</span>
+              <span className="font-semibold text-ink-900">{importer.name}</span>
               {importerVerified && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-2.5 py-0.5 text-xs font-medium text-sky-400">
+                <span className="inline-flex items-center gap-1 rounded-full bg-gold-500/15 px-2.5 py-0.5 text-xs font-medium text-gold-600">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-3 w-3">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
@@ -109,7 +117,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
                 </span>
               )}
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-400">
               {importer.country ? `${countryName(importer.country)} · ` : ""}Member since {memberSince}
             </p>
           </div>
@@ -164,8 +172,8 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       )}
 
       {!actor && (
-        <p className="mt-10 text-sm text-slate-500">
-          <a href="/login" className="text-sky-400 hover:underline">
+        <p className="mt-10 text-sm text-ink-500">
+          <a href="/login" className="text-gold-600 hover:underline">
             Sign in
           </a>{" "}
           to bid on this RFQ.

@@ -26,19 +26,19 @@ export async function ShipmentsWidget({ organization }: { organization: CurrentO
   const instanceByRfqId = new Map(instances.map((i) => [i.rfqId, i]));
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">Shipments</h2>
+    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
+      <h2 className="font-semibold text-ink-900">Shipments</h2>
       {orgShipments.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">No shipments yet.</p>
+        <p className="mt-2 text-sm text-ink-400">No shipments yet.</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {orgShipments.map((shipment) => {
             const instance = instanceByRfqId.get(shipment.rfqId);
             const stage = instance ? instance.currentNode : shipment.transportStage;
             return (
-              <li key={shipment.id} className="text-sm text-slate-300">
+              <li key={shipment.id} className="text-sm text-ink-700">
                 {shipment.mode} · {shipment.originLocation} → {shipment.destinationLocation}
-                <span className="ml-2 text-slate-500">
+                <span className="ml-2 text-ink-400">
                   {stage}
                   {!instance && " (legacy stage)"}
                 </span>
