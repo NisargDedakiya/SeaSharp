@@ -4,27 +4,15 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 
 // ---------------------------------------------------------------------------
-// Local file-storage stand-in for Supabase Storage
-//
-// docs/README.md's gap table documents that Supabase Storage is target-only
-// in this codebase: no file upload mechanism exists anywhere in the app, and
-// this sandbox has no real Supabase project credentials (same constraint as
-// src/core/identity/adapter.ts's Supabase Auth migration — see that file's
-// header comment for the established pattern this module follows).
-//
-// This module is a minimal local-disk stand-in, scoped only to the
-// verification (KYC/KYB) feature's document uploads: it writes the given
-// buffer to a gitignored `.uploads/` directory at the repo root and returns
-// a `storagePath` in exactly the shape `uploadedFiles.storagePath` /
-// `documents.storagePath` already expect (a opaque string identifying where
-// the file lives). Swapping to real Supabase Storage later means replacing
-// this module's internals (uploading to a Supabase Storage bucket and
-// returning its object path/URL) while keeping `saveLocalFile`'s signature
-// and return shape unchanged — exactly like adapter.ts did for auth.
+// Local disk file storage — scoped only to the verification (KYC/KYB)
+// feature's document uploads. Writes the given buffer to a gitignored
+// `.uploads/` directory at the repo root and returns a `storagePath` in
+// exactly the shape `uploadedFiles.storagePath` / `documents.storagePath`
+// already expect (an opaque string identifying where the file lives).
 //
 // Not a general-purpose storage integration: no signed URLs, no bucket
 // policies, no CDN — just enough to give the verification flow a real,
-// working (if locally-scoped) upload path instead of no upload path at all.
+// working upload path.
 // ---------------------------------------------------------------------------
 
 const UPLOAD_ROOT = path.join(process.cwd(), ".uploads");

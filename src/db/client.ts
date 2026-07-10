@@ -4,11 +4,11 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 import { env } from "@/lib/env";
 
-// Two connections, mirroring how a real Supabase deployment separates the
-// service-role key (bypasses RLS, used for migrations/seed/admin/background
-// jobs) from PostgREST's `authenticated` role (RLS-enforced, used for every
-// user-facing request). See docs/04-database-design.md#row-level-security
-// and drizzle/0001_rls_and_roles.sql for how these roles are provisioned.
+// Two connections: a service-role connection that bypasses RLS (migrations,
+// seed, admin/background jobs) and an `app_user` connection that every
+// user-facing request goes through, with RLS enforced by Postgres itself.
+// See docs/04-database-design.md#row-level-security and
+// drizzle/manual/01_rls_and_roles.sql for how these roles are provisioned.
 
 const serviceConnection = postgres(env.DATABASE_URL, { max: 5 });
 // Service-role connection: bypasses RLS entirely. Only use this for

@@ -134,11 +134,12 @@ the trigger that would justify starting each one.
   usage to extend.
 - **Sanctions screening** — must precede any real-money escrow release at
   scale. This is a pre-launch compliance requirement, not a "nice to have,"
-  once real Supabase Auth and real payments are live.
+  once real payments are live.
 - **Container booking** — Phase 3 logistics; depends on a real freight API
   integration replacing the `src/integrations/freight/` stub.
-- **Digital document vault** — depends on Supabase Storage, which is listed
-  as target-only in `docs/README.md`'s gap table.
+- **Digital document vault** — depends on general-purpose object storage,
+  which is listed as target-only in `docs/README.md`'s gap table (self-hosted,
+  not Supabase Storage — see that doc's "Current state vs. v2.0 target").
 - **Organization analytics** — a natural dashboard widget (see Task 5's
   widget system) once there's enough transaction volume to analyze.
 - **AI-powered document review** — extends `src/core/ai/compliance-ai.ts`.

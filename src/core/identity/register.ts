@@ -9,17 +9,12 @@ import { createAuthIdentity, deleteAuthIdentity } from "@/core/identity/adapter"
  * The full registration flow: create the auth identity, then its profile
  * and a brand-new organization it owns in one DB transaction.
  *
- * Historically this ran entirely inside one Postgres transaction, so a
- * failure partway through never left an orphaned `auth.users` row. Now that
- * the auth identity is created via `createAuthIdentity` — which, once a
- * real Supabase project is configured, calls out to Supabase Auth over the
- * network rather than inserting a row in this DB — it can no longer be part
- * of the same Postgres transaction as the profile/organization insert.
- * Instead: create the auth identity first, then run profile+org creation in
- * a transaction, and best-effort compensate (delete the auth identity) if
- * that transaction fails. See adapter.ts's `deleteAuthIdentity` for why this
- * is "best-effort" rather than fully atomic. This is what
- * src/app/api/auth/register/route.ts calls.
+ * The auth identity is created first via `createAuthIdentity` (its own
+ * `auth.users` insert, uniqueness-checked ahead of time), then profile+org
+ * creation runs in a single transaction; if that transaction fails, the
+ * auth identity is best-effort deleted (`adapter.ts`'s `deleteAuthIdentity`)
+ * so a failed registration doesn't leave an orphaned `auth.users` row with
+ * no profile. This is what src/app/api/auth/register/route.ts calls.
  */
 export async function registerUserAndOrganization(params: {
   email: string;

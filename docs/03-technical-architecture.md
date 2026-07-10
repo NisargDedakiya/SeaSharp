@@ -1,9 +1,12 @@
 # SeaSharp Technical Architecture
 
 > Status: the database, ORM, RLS, multi-tenancy, and identity/RBAC sections
-> below are live. Next.js 15, Supabase Edge Functions, and the newer
-> integrations (Stripe, Resend, Twilio, PostHog) are still target-only. See
-> [docs/README.md](./README.md) for the full comparison.
+> below are live. This project deliberately does not use Supabase for
+> anything (Auth, hosted Postgres, Storage, or Realtime) — plain,
+> self-hosted Postgres is the whole database story. Next.js 15, email
+> (Resend), and identity/RBAC are live; Stripe, Twilio, and PostHog are
+> still target-only. See [docs/README.md](./README.md) for the full
+> comparison.
 
 ## Tech stack
 
@@ -11,19 +14,19 @@
 |---|---|---|
 | Frontend | Next.js 15 (App Router), TypeScript | Server Components by default; Client Components only where interactivity requires it |
 | Styling | Tailwind CSS + shadcn/ui | shadcn components live in-repo (not a black-box dependency) so they can be themed to the SeaSharp brand — see [Design System](./05-ui-ux-design-system.md) |
-| Backend | Next.js API Routes (Route Handlers) | Supabase Edge Functions only where a workload needs to run outside the Next.js request lifecycle (e.g. scheduled jobs, webhook fan-out) |
-| Database | Supabase PostgreSQL | See [Database Design](./04-database-design.md) |
-| ORM | Drizzle ORM | Chosen over Prisma/raw Supabase client for type-safe schema-as-code and zero runtime codegen step |
-| Auth | Supabase Auth | Email/password at launch; OAuth providers and MFA are additive, not blocking. **Migrated in code** (`src/core/identity/adapter.ts` now calls `@supabase/supabase-js`'s `signUp`/`signInWithPassword`/`signOut`, plus new `verify-email`/`reset-password`/`forgot-password` routes) — **not yet verified against a live Supabase project**, since this environment has no Supabase credentials. Falls back to the original local bcrypt+JWT adapter when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` aren't set, so local dev/CI don't need live credentials either. See [top-level README § Why not real Supabase here](../README.md#why-not-real-supabase-here) |
-| Storage | Supabase Storage | Buckets: `company-documents`, `trade-documents`, `shipment-files`, `contracts`, `certificates`, `user-avatars`, `logos`, `attachments` |
-| Realtime | Supabase Realtime | RFQ updates, shipment tracking, notifications, chat, live dashboard widgets |
+| Backend | Next.js API Routes (Route Handlers) | A separate worker process only where a workload needs to run outside the Next.js request lifecycle (e.g. scheduled jobs, webhook fan-out) — not built yet |
+| Database | Plain, self-hosted PostgreSQL | No Supabase. See [Database Design](./04-database-design.md) |
+| ORM | Drizzle ORM | Chosen over Prisma for type-safe schema-as-code and zero runtime codegen step |
+| Auth | Plain Postgres, bcrypt + signed JWT | `src/core/identity/adapter.ts` owns `auth.users` directly — bcrypt-hashed passwords, a JWT session cookie verified locally with no external provider or network call. See [top-level README § Auth: plain Postgres, no Supabase](../README.md#auth-plain-postgres-no-supabase) |
+| Storage | Local disk (`src/core/storage/local-storage.ts`) | Scoped to KYC/KYB document uploads only — no signed URLs, bucket policies, or CDN. A general-purpose object store is a future gap, not assumed to be Supabase Storage |
+| Realtime | Polling (`CountdownTimer`) | RFQ updates, shipment tracking, notifications, chat, live dashboard widgets are all still poll/refresh-based — no push channel yet |
 | Payments | Stripe | Escrow and wallet funding events are Stripe webhook-driven, never client-confirmed |
-| Email | Resend | Transactional email (invitations, notifications, receipts) |
+| Email | Resend | Transactional email (invitations, notifications, receipts) — `src/integrations/resend/index.ts`, gated on `RESEND_API_KEY` (logs instead of sending when unset) |
 | Validation | Zod | Every route and form validates input at the boundary — same discipline as Phase 1 |
 | Forms | React Hook Form | Paired with Zod resolvers |
 | Charts | Recharts | Dashboard and admin analytics |
 | Testing | Vitest (unit/integration), Playwright (E2E) | Mirrors Phase 1's test discipline, extended with browser E2E for critical flows (RFQ lifecycle, escrow release, auth) |
-| Deployment | Vercel | Supabase project per environment (dev/staging/prod) |
+| Deployment | Vercel (app) + any self-hosted Postgres instance per environment (dev/staging/prod) | No Supabase project |
 
 ## Guiding principles (carried forward from Phase 1)
 
@@ -201,25 +204,26 @@ full contract. Summary:
 
 ## Security
 
-- Supabase Auth session cookies, httpOnly, secure, SameSite=Lax.
+- Own signed-JWT session cookies (`src/core/identity/adapter.ts`), httpOnly,
+  secure, SameSite=Lax — no external auth provider.
 - RLS policies per table (see [Database Design § RLS](./04-database-design.md#row-level-security)).
 - Security headers (CSP, HSTS, X-Frame-Options, etc.) — carried forward from
   Phase 1's `next.config.mjs` configuration verbatim.
-- Secrets (Stripe keys, Resend keys, Supabase service role key) never touch
-  the client bundle; service-role Supabase client is only instantiated in
-  server-only modules.
-- File uploads to Supabase Storage are scanned before being linked to a
-  record other parties can see.
+- Secrets (Stripe keys, Resend keys, the Postgres service-role connection
+  string) never touch the client bundle; the service-role DB connection is
+  only instantiated in server-only modules.
+- File uploads (local disk today, see `src/core/storage/local-storage.ts`)
+  are scanned before being linked to a record other parties can see.
 - Every admin action and every money-movement action is audit-logged
   (see [PRD § Audit Logs](./02-product-requirements.md#15-audit-logs)).
 
 ## Deployment
 
 - **Environments**: `dev` (local + preview deploys), `staging`, `production`
-  — each with its own Supabase project, not shared schemas in one project.
+  — each with its own Postgres database, not shared schemas in one instance.
 - **Vercel** for the Next.js app, with preview deployments per PR.
-- **Supabase CLI migrations** run in CI before a deploy is promoted; a
-  migration that fails blocks the deploy rather than partially applying.
+- **Drizzle migrations** (`drizzle/`) run in CI before a deploy is promoted;
+  a migration that fails blocks the deploy rather than partially applying.
 - **Health check**: `/api/health` reports real DB connectivity, mirroring
   Phase 1's health endpoint — required for any orchestrator/uptime monitor.
 - **CI** (GitHub Actions): lint, typecheck, unit + integration tests,

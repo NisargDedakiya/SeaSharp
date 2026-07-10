@@ -8,10 +8,10 @@
 > the two disagree. See [docs/README.md](./README.md) for the full
 > comparison against the target.
 
-Database: **Supabase PostgreSQL**. ORM: **Drizzle** (`src/db/schema/*`, one
-file per domain below). Every table has `id uuid primary key default
-gen_random_uuid()`, `created_at timestamptz default now()`, and
-`updated_at timestamptz default now()` unless noted otherwise.
+Database: **plain, self-hosted PostgreSQL** — no Supabase. ORM: **Drizzle**
+(`src/db/schema/*`, one file per domain below). Every table has `id uuid
+primary key default gen_random_uuid()`, `created_at timestamptz default
+now()`, and `updated_at timestamptz default now()` unless noted otherwise.
 
 ## Conventions
 
@@ -32,17 +32,14 @@ gen_random_uuid()`, `created_at timestamptz default now()`, and
 ## Identity domain
 
 ### `profiles`
-Extends Supabase Auth's `auth.users` with app-specific fields (1:1 on `id`).
-Against a real Supabase project, `auth.users` is the actual GoTrue-owned
-table in that project's Postgres (not a mirror in this repo's schema) — see
-`src/db/schema/identity.ts`'s comment on `authUsers` and
-`src/core/identity/adapter.ts`'s header comment for why `profiles.id` needs
-no migration to point at it.
+Extends this repo's own `auth.users` table (bcrypt-hashed passwords, no
+external auth provider — see `src/core/identity/adapter.ts`) with
+app-specific fields (1:1 on `id`).
 | Column | Type | Notes |
 |---|---|---|
 | `id` | uuid | FK → `auth.users.id` |
 | `full_name` | text | |
-| `avatar_url` | text | Supabase Storage path in `user-avatars` |
+| `avatar_url` | text | Local storage path (see `src/core/storage/local-storage.ts`) |
 | `phone` | text | |
 
 ### `organizations`
@@ -301,15 +298,12 @@ generated_by (user | doc_ai), signed_at nullable`), `uploaded_files` (looser
 attachments — chat files, KYC submission scans).
 
 `storage_path` on both tables is written by
-`src/core/storage/local-storage.ts`, a **local-disk stand-in for Supabase
-Storage** (`local://.uploads/<organizationId>/<uuid>-<filename>`, files
-written under a gitignored `.uploads/` at the repo root) — this sandbox has
-no real Supabase Storage credentials, and no general-purpose upload
-mechanism exists in this codebase; the stand-in is scoped only to the
-verification feature's document uploads (see docs/README.md's gap table).
-Swapping to real Supabase Storage later means replacing that module's
-internals while keeping its function signature, the same pattern
-`src/core/identity/adapter.ts` established for Supabase Auth.
+`src/core/storage/local-storage.ts`, a **local-disk file store**
+(`local://.uploads/<organizationId>/<uuid>-<filename>`, files written under
+a gitignored `.uploads/` at the repo root) — no general-purpose upload
+mechanism exists in this codebase; it's scoped only to the verification
+feature's document uploads (see docs/README.md's gap table). No signed
+URLs, bucket policies, or CDN.
 
 ## Verification domain
 
@@ -360,9 +354,9 @@ itself — the base table never becomes readable to unauthenticated users.
 ## Migrations
 
 - Drizzle schema is the source of truth; `drizzle-kit generate` produces SQL
-  migrations checked into `supabase/migrations/`.
-- CI applies pending migrations against a disposable Supabase branch/preview
-  database and runs the full test suite before a migration is allowed to
+  migrations checked into `drizzle/`.
+- CI applies pending migrations against a disposable Postgres service
+  container and runs the full test suite before a migration is allowed to
   merge — a migration that breaks existing queries fails CI, not production.
 - No destructive migration (`DROP COLUMN`, `DROP TABLE`, type-narrowing
   `ALTER COLUMN`) ships in the same deploy as the application code that stops

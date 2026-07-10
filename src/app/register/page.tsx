@@ -47,11 +47,11 @@ export default function RegisterPage() {
   return (
     <main className="mx-auto max-w-md px-6 py-16">
       <h1 className="text-3xl font-bold text-ink-900">Create your account</h1>
-      <p className="mt-2 text-ink-500">Join as a verified exporter or importer.</p>
+      <p className="mt-2 text-ink-500">Join as a verified exporter, importer, or investor.</p>
 
       <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
         <div className="flex gap-2">
-          {(["EXPORTER", "IMPORTER"] as const).map((role) => (
+          {(["EXPORTER", "IMPORTER", "INVESTOR"] as const).map((role) => (
             <button
               type="button"
               key={role}
@@ -62,7 +62,7 @@ export default function RegisterPage() {
                   : "border-ink-100 text-ink-700"
               }`}
             >
-              {role === "EXPORTER" ? "Exporter" : "Importer"}
+              {role === "EXPORTER" ? "Exporter" : role === "IMPORTER" ? "Importer" : "Investor"}
             </button>
           ))}
         </div>

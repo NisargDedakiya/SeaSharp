@@ -9,7 +9,7 @@ const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(["EXPORTER", "IMPORTER"]),
+  role: z.enum(["EXPORTER", "IMPORTER", "INVESTOR"]),
   companyName: z.string().optional(),
   country: z.string().optional(),
 });
@@ -22,8 +22,11 @@ export const POST = withApiHandler(
     const { name, email, password, role, companyName, country } = registerSchema.parse(body);
 
     // Every ecosystem role in organizationTypeEnum is schema-ready (see
-    // docs/01-product-vision.md), but only Exporter/Importer have a live
-    // registration flow in this phase — same scope boundary as Phase 1.
+    // docs/01-product-vision.md), but only Exporter/Importer/Investor have
+    // a live registration flow so far — the dashboard is already
+    // role-aware for all 8 org types (see src/app/dashboard/page.tsx),
+    // registration is opened up incrementally as each role gets a real
+    // flow to land in.
     const organizationType: (typeof organizationTypeEnum.enumValues)[number] = role;
 
     const result = await registerUserAndOrganization({

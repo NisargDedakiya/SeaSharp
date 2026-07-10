@@ -11,9 +11,10 @@
   existing integrations.
 - **Format**: JSON request and response bodies. `Content-Type:
   application/json` required on any request with a body.
-- **Auth**: Supabase session (cookie) for first-party web/app clients;
-  bearer API keys (`Authorization: Bearer sk_live_...`) for server-to-server
-  and the future public API Platform (Phase 4).
+- **Auth**: signed session cookie (`src/core/identity/adapter.ts`, no
+  external auth provider) for first-party web/app clients; bearer API keys
+  (`Authorization: Bearer sk_live_...`) for server-to-server and the future
+  public API Platform (Phase 4).
 - **Pagination**: cursor-based — `?cursor=<opaque>&limit=<n>` (max `limit`
   100), response includes `next_cursor: string | null`. No offset-based
   pagination (it doesn't paginate safely under concurrent writes).
@@ -64,9 +65,8 @@ whenever the rest of the API is versioned.
 
 **`GET /api/audit/:entityType/:entityId`**
 
-- **Auth**: Supabase-style session cookie (`getSessionActor()`), same as
-  every other first-party route in this phase — no bearer-key/public access
-  yet.
+- **Auth**: signed session cookie (`getSessionActor()`), same as every other
+  first-party route in this phase — no bearer-key/public access yet.
 - **`entityType`**: one of `rfq`, `shipment` (validated with a Zod enum;
   anything else is a 400). A `shipment` id is resolved to its owning RFQ
   before the timeline is built, since every trade-lifecycle table is

@@ -12,8 +12,9 @@ acceptance criteria. Scope per phase follows the roadmap in the
 ## Layer 1 — Identity & Organization *(Phase 1)*
 
 ### 1.1 Authentication
-- **Flow**: user signs up with email + password (Supabase Auth), verifies
-  email, signs in, session persists across visits.
+- **Flow**: user signs up with email + password (plain Postgres, bcrypt +
+  signed JWT — no Supabase), verifies email, signs in, session persists
+  across visits.
 - **Acceptance criteria**: unverified emails cannot access authenticated
   routes; passwords meet a minimum strength policy; failed logins are rate
   limited; sessions expire and refresh silently.
@@ -45,10 +46,10 @@ acceptance criteria. Scope per phase follows the roadmap in the
 - **Fields collected**: legal company name, registration number, tax ID,
   country of registration, one or more beneficial owners (name +
   ownership %), a registration document upload, and a tax document upload.
-- **Document upload**: implemented via a local-disk stand-in
-  (`src/core/storage/local-storage.ts`) for Supabase Storage, scoped only
-  to this feature — see docs/README.md's gap table. Uploaded files are
-  recorded in `uploaded_files` and linked from `kyc_submissions`.
+- **Document upload**: implemented via local disk storage
+  (`src/core/storage/local-storage.ts`), scoped only to this feature — see
+  docs/README.md's gap table. Uploaded files are recorded in
+  `uploaded_files` and linked from `kyc_submissions`.
 - **Flagging**: `runSupplierCheck()` is a deterministic heuristic (missing
   or too-short registration number/tax ID, missing/invalid company name,
   missing country, no valid beneficial owner, invalid ownership

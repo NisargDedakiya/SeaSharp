@@ -17,12 +17,6 @@ export async function setup() {
     // no .env file — fine, CI sets these env vars directly
   }
 
-  // Force local identity fallback during Vitest integration tests to avoid
-  // rate limits, network fragility, and pollution of the real Supabase project.
-  process.env.SUPABASE_URL = "";
-  process.env.SUPABASE_ANON_KEY = "";
-  process.env.SUPABASE_SERVICE_ROLE_KEY = "";
-
   // Force local PostgreSQL server for fast, low-latency test execution.
   process.env.DATABASE_URL = "postgres://postgres@localhost:5432/seasharp";
   process.env.APP_DATABASE_URL = "postgres://app_user:app_user_dev_password@localhost:5432/seasharp";

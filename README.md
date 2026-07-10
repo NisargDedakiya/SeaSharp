@@ -23,15 +23,11 @@ below.
 - Tailwind CSS, `framer-motion`
 - **Postgres via Drizzle ORM**, with real Row Level Security — see
   [Row Level Security](#row-level-security) below
-- `src/core/identity/adapter.ts` — migrated in code to real Supabase Auth
-  (`@supabase/supabase-js`'s `signUp`/`signInWithPassword`/`signOut`), plus
-  new `verify-email`/`reset-password`/`forgot-password` routes. **Not yet
-  verified against a live Supabase project** — this sandbox has no Supabase
-  credentials or network access to GoTrue. Falls back automatically to the
-  original local bcrypt+JWT adapter (same `auth.users`-shaped local table)
-  when `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are unset, so local
-  dev/CI/`npm test` don't need live credentials either (see
-  [Why not real Supabase](#why-not-real-supabase-here) below)
+- `src/core/identity/adapter.ts` — self-contained identity/auth: bcrypt-hashed
+  passwords in a plain `auth.users` table, signed-JWT session cookies
+  verified locally with no external provider or network call. No Supabase —
+  see [Auth: plain Postgres, no Supabase](#auth-plain-postgres-no-supabase)
+  below
 - Organizations + RBAC (`organizations`, `organization_members`, `roles`,
   `permissions`) — every registered account gets its own organization; the
   exporter/importer distinction from earlier phases is now the
@@ -220,38 +216,21 @@ even if an application check were ever missed.
 - `withRlsContext(profileId, fn)` — runs `fn` against the non-superuser
   `app_user` role via `APP_DATABASE_URL`, with `request.jwt.claims` set for
   the duration of one transaction so `auth.uid()` resolves inside RLS
-  policies exactly like it would under real Supabase/PostgREST.
+  policies, exactly like a PostgREST-fronted setup would — but this is
+  plain self-hosted Postgres, no PostgREST/Supabase involved.
 
-### Why not real Supabase here?
+### Auth: plain Postgres, no Supabase
 
-This repo's own dev loop runs inside a sandboxed environment that can't run
-Docker containers (no privileged mode / no systemd), which rules out
-self-hosting Supabase's full stack (GoTrue, PostgREST, Realtime, Storage all
-ship as separate containers). Against a **real Supabase project**, none of
-`drizzle/manual/01_rls_and_roles.sql`'s role/`auth.uid()` bootstrap is
-needed — Supabase already provisions `anon`/`authenticated`/`service_role`
-and PostgREST already sets `request.jwt.claims` per request. Swapping in
-real Supabase Auth means: pointing `DATABASE_URL` at the Supabase Postgres
-connection string, and removing `drizzle/manual/01_rls_and_roles.sql`'s
-role-provisioning statements (keeping only the RLS policies themselves,
-which are plain portable SQL).
-
-**Update (Task 3):** the code side of this swap is done —
-`src/core/identity/adapter.ts` now calls `supabase.auth.signUp()` /
-`signInWithPassword()` / `signOut()` via `@supabase/supabase-js` whenever
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are set, with new
-`/api/auth/verify-email`, `/api/auth/reset-password`, and
-`/api/auth/forgot-password` routes for Supabase's native email-verification
-and password-recovery flows. `src/core/identity/register.ts` no longer
-writes to `auth.users` directly when Supabase is configured. **What's not
-done, and can't be done here:** this has never run against a real Supabase
-project — no credentials exist in this sandbox and it has no network path
-to a live GoTrue instance. Treat the Supabase code path as
-mechanically-reviewed (passes lint/tsc/tests) but operationally unverified
-until it's pointed at a real project. When Supabase env vars are unset (the
-default here), the adapter transparently falls back to the original local
-bcrypt+JWT implementation, which is what `npm test` and local dev still
-exercise.
+SeaSharp does not use Supabase — not for Auth, not for hosted Postgres, not
+for Storage. `DATABASE_URL`/`APP_DATABASE_URL` point at any Postgres
+instance you run yourself (see `docker-compose.yml`), and
+`src/core/identity/adapter.ts` owns identity end to end: `auth.users` is a
+plain table this repo writes to directly, passwords are bcrypt-hashed, and
+sessions are a signed JWT cookie verified locally with zero external calls.
+`drizzle/manual/01_rls_and_roles.sql` provisions the
+`anon`/`authenticated`/`service_role` roles and the `auth.uid()` helper
+itself (a real Supabase project would provision these automatically; here
+they're hand-rolled so RLS still works against a self-hosted database).
 
 ## Testing
 
@@ -286,6 +265,7 @@ npm run test:watch
   (currently deterministic, by design).
 - Distributed rate limiting (currently in-memory/per-process — fine for one
   instance, needs a shared store behind a load balancer).
-- Real Supabase Storage/Realtime. Supabase **Auth** is migrated in code (see
-  [Why not real Supabase here](#why-not-real-supabase-here) above) but not
-  verified against a live project.
+- Object storage beyond the local-disk KYC/KYB upload stand-in
+  (`src/core/storage/local-storage.ts`) — no signed URLs, bucket policies,
+  or CDN. Realtime updates are polling-based (`CountdownTimer`), not a push
+  channel.

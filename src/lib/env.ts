@@ -7,15 +7,6 @@ const envSchema = z.object({
   // RLS-enforced `app_user` connection — every user-facing request. See src/db/client.ts.
   APP_DATABASE_URL: z.string().min(1, "APP_DATABASE_URL is required"),
   AUTH_JWT_SECRET: z.string().min(32, "AUTH_JWT_SECRET must be at least 32 characters"),
-  // Real Supabase Auth project config (see src/core/identity/adapter.ts). All
-  // three are optional: when unset (e.g. this sandbox, which has no live
-  // Supabase project), the adapter falls back to its local
-  // bcrypt+signed-JWT identity store so `npm test`/local dev keep working
-  // without network access. Set all three to point the adapter at a real
-  // Supabase project.
-  SUPABASE_URL: z.union([z.string().url(), z.literal("")]).default(""),
-  SUPABASE_ANON_KEY: z.string().default(""),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().default(""),
   APP_URL: z.string().url(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   SENTRY_DSN: z.string().url().optional().or(z.literal("")),
