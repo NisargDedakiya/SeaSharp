@@ -57,7 +57,7 @@ async function registerAndGetActor(overrides: Record<string, unknown>) {
   const res = await registerUser(
     jsonRequest("http://localhost/api/auth/register", {
       name: "Test User",
-      email: `${crypto.randomUUID()}@test.com`,
+      email: `seasharp.user.${crypto.randomUUID().slice(0, 8)}@gmail.com`,
       password: "password123",
       role: "EXPORTER",
       ...overrides,

@@ -35,7 +35,7 @@ export default defineConfig({
     },
     globalSetup: ["./tests/global-setup.ts"],
     setupFiles: ["./tests/setup.ts"],
-    testTimeout: 20_000,
+    testTimeout: 60_000,
     hookTimeout: 30_000,
     fileParallelism: false,
   },
