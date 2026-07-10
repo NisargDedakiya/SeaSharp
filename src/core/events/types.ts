@@ -10,6 +10,7 @@ export const EVENT_TYPES = [
   "KYC_VERIFIED",
   "KYC_PENDING",
   "LOAN_DECIDED",
+  "LOAN_FUNDED",
   // Emitted by src/core/workflow/engine.ts#advance on every workflow_instances
   // transition — see workflow_history in src/db/schema/workflow.ts for why
   // there's no separate workflow_events table.

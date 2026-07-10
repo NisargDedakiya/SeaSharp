@@ -163,8 +163,13 @@ Customs → Destination Port → Truck → Importer Warehouse.
 
 ### 5.2 PO Financing & Invoice Financing
 - **Flow**: an exporter with an awarded RFQ (and funded escrow) can request
-  financing against the purchase order; CreditLayer scores the request using
-  STS, delivery history, and commodity volatility.
+  pre-shipment financing against the purchase order — funds to buy/produce
+  goods before exporting them; an importer with an awarded RFQ can equally
+  request import-purchase financing against it — funds to import goods in
+  order to resell them domestically. Both are scored by CreditLayer using
+  STS, delivery history, and commodity volatility. **Shipped** (unversioned
+  MVP): `POST /api/loans`, see
+  [docs/06-api-integration-spec.md](./06-api-integration-spec.md#shipped-investor-financing-marketplace).
 - **Acceptance criteria**: financing terms (rate, amount) are computed from a
   documented, versioned scoring model; defaults are recorded and feed back
   into STS.
@@ -175,8 +180,14 @@ Customs → Destination Port → Truck → Importer Warehouse.
   source recorded at time of transaction for auditability.
 
 ### 5.4 Investor Marketplace
-- **Flow**: accredited investors browse funded/fundable trade loans and
-  commit capital.
+- **Flow**: investors browse CreditLayer-approved, not-yet-funded trade
+  financing requests and commit capital to a specific one (one investor org
+  funds one specific request — no generic capital pool). **Shipped** (MVP,
+  not yet "accredited investor" verified — see
+  [docs/06-api-integration-spec.md](./06-api-integration-spec.md#shipped-investor-financing-marketplace)
+  for what's built vs. deferred): `POST /api/investments/:id/fund`, plus an
+  `INVESTOR` organization type with its own registration flow and dashboard
+  ("Investment Opportunities" widget).
 - **Acceptance criteria**: investor-facing risk data matches the same
   CreditLayer score shown to the exporter (single source of truth).
 

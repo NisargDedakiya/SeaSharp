@@ -58,6 +58,8 @@ function describeDomainEvent(type: string, payload: Record<string, unknown>): st
       return "KYC submitted, pending review";
     case "LOAN_DECIDED":
       return `Loan request ${payload.approved ? "approved" : "rejected"}`;
+    case "LOAN_FUNDED":
+      return "Loan request funded by an investor";
     case "WORKFLOW_TRANSITIONED":
       // Workflow transitions are also recorded via workflow_history below;
       // this domain_events row is the cross-domain notification/audit

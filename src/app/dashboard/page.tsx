@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { eq, and } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
-import { shipments, tradeLoans, dashboardLayouts } from "@/db/schema";
+import { tradeLoans, dashboardLayouts } from "@/db/schema";
 import { getSessionActor } from "@/core/identity/session";
 import { recalculateAndSaveSts } from "@/core/finance/sts-server";
+import { getEligibleFinancingRfqs } from "@/core/finance/loans";
 import { defaultLayoutFor, WIDGET_REGISTRY } from "@/components/dashboard/widgets/registry";
 import { renderWidget } from "@/components/dashboard/widgets/render";
 import { DashboardGrid } from "@/components/dashboard/DashboardGrid";
@@ -23,9 +24,13 @@ export default async function DashboardPage() {
 
   const { organization } = actor;
 
-  // STS + LOAN widgets both need this exporter-only data; computed once
-  // here and threaded through renderWidget's context (see render.tsx),
-  // same as the old page.tsx did for its exporter branch.
+  // STS + LOAN widgets both need this data; computed once here and
+  // threaded through renderWidget's context (see render.tsx). STS is
+  // exporter-only (a delivery-performance score); LOAN/eligibility apply to
+  // both exporters (pre-shipment "buy to export" financing) and importers
+  // (import-purchase "buy to resell" financing) — INVESTMENTS (the investor
+  // browse/fund widget) fetches its own data directly, same as
+  // RfqsWidget/RevenueWidget do for their org types.
   let stsBreakdown = null;
   let eligibleRfqs: { id: string; product: string; escrowAmount: number }[] = [];
   let loans: {
@@ -37,45 +42,18 @@ export default async function DashboardPage() {
     status: string;
   }[] = [];
 
-  if (organization.type === "EXPORTER") {
-    stsBreakdown = await recalculateAndSaveSts(organization.id);
+  if (organization.type === "EXPORTER" || organization.type === "IMPORTER") {
+    if (organization.type === "EXPORTER") {
+      stsBreakdown = await recalculateAndSaveSts(organization.id);
+    }
 
-    const exporterShipments = await serviceDb.query.shipments.findMany({
-      where: eq(shipments.exporterOrganizationId, organization.id),
-    });
-    const shipmentRfqIds = exporterShipments.map((s) => s.rfqId);
-    const awardedRfqs = shipmentRfqIds.length
-      ? await serviceDb.query.rfqs.findMany({
-          where: (r, { inArray: inArrayOp, and: andOp, or: orOp, eq: eqOp }) =>
-            andOp(inArrayOp(r.id, shipmentRfqIds), orOp(eqOp(r.status, "AWARDED"), eqOp(r.status, "FULFILLED"))),
-        })
-      : [];
-    const escrows = awardedRfqs.length
-      ? await serviceDb.query.escrowAccounts.findMany({
-          where: (e, { inArray: inArrayOp }) =>
-            inArrayOp(
-              e.rfqId,
-              awardedRfqs.map((r) => r.id)
-            ),
-        })
-      : [];
-    const escrowByRfqId = new Map(escrows.map((e) => [e.rfqId, e]));
+    eligibleRfqs = await getEligibleFinancingRfqs(organization.id, organization.type);
 
-    const exporterLoans = await serviceDb.query.tradeLoans.findMany({
-      where: eq(tradeLoans.exporterOrganizationId, organization.id),
+    const orgLoans = await serviceDb.query.tradeLoans.findMany({
+      where: eq(tradeLoans.requestingOrganizationId, organization.id),
       orderBy: (l, { desc }) => [desc(l.requestedAt)],
     });
-    const loanedRfqIds = new Set(exporterLoans.filter((l) => l.rfqId).map((l) => l.rfqId!));
-
-    eligibleRfqs = awardedRfqs
-      .filter((r) => escrowByRfqId.has(r.id) && !loanedRfqIds.has(r.id))
-      .map((r) => ({
-        id: r.id,
-        product: r.product,
-        escrowAmount: Number(escrowByRfqId.get(r.id)!.amount),
-      }));
-
-    loans = exporterLoans.map((l) => ({
+    loans = orgLoans.map((l) => ({
       id: l.id,
       requestedAmount: Number(l.requestedAmount),
       approvedAmount: l.approvedAmount ? Number(l.approvedAmount) : null,
@@ -106,7 +84,11 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-16">
       <h1 className="text-3xl font-bold text-slate-50">
-        {organization.type === "EXPORTER" ? "Exporter Dashboard" : "Importer Dashboard"}
+        {organization.type === "EXPORTER"
+          ? "Exporter Dashboard"
+          : organization.type === "INVESTOR"
+            ? "Investor Dashboard"
+            : "Importer Dashboard"}
       </h1>
       <p className="mt-1 text-slate-400">{organization.name}</p>
 

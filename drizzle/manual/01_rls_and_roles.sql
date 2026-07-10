@@ -241,7 +241,7 @@ create policy transactions_follow_wallet on transactions for select
 
 alter table trade_loans enable row level security;
 create policy trade_loan_org_select on trade_loans for select
-  using (is_org_member(exporter_organization_id));
+  using (is_org_member(requesting_organization_id));
 
 -- Files domain
 alter table documents enable row level security;

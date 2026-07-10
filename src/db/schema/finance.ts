@@ -1,5 +1,5 @@
 import { pgTable, pgEnum, uuid, text, timestamp, numeric, integer } from "drizzle-orm/pg-core";
-import { organizations } from "./identity";
+import { organizations, organizationTypeEnum } from "./identity";
 import { rfqs } from "./marketplace";
 
 // Mirrors Phase 1's ESCROW_STATUSES exactly for feature parity — see
@@ -100,12 +100,29 @@ export const tradeLoanStatusEnum = pgEnum("trade_loan_status", [
   "REJECTED",
 ]);
 
+// requestingOrganizationId/-OrgType: the borrower and what kind of trade
+// financing they're asking for — EXPORTER requests are pre-shipment
+// financing against a verified PO (funds to buy/produce goods before
+// exporting them), IMPORTER requests are import-purchase financing (funds
+// to import goods in order to resell them domestically). Both are scored
+// the same way (see scoreLoanRequest) off the requesting org's STS and the
+// deal's escrow value; the type is stored explicitly rather than derived
+// so borrower-side lists/UI can distinguish the purpose without a join.
+//
+// investorOrganizationId: which INVESTOR organization committed capital to
+// this request, set once (see POST /api/investments/:id/fund) when an
+// APPROVED, unfunded request is funded — null until then. There is no
+// generic capital pool: every FUNDED loan is backed by one specific
+// investor org, mirroring how an RFQ's award ties one specific bid to one
+// specific exporter.
 export const tradeLoans = pgTable("trade_loans", {
   id: uuid("id").primaryKey().defaultRandom(),
   rfqId: uuid("rfq_id").references(() => rfqs.id),
-  exporterOrganizationId: uuid("exporter_organization_id")
+  requestingOrganizationId: uuid("requesting_organization_id")
     .notNull()
     .references(() => organizations.id),
+  requestingOrgType: organizationTypeEnum("requesting_org_type").notNull(),
+  investorOrganizationId: uuid("investor_organization_id").references(() => organizations.id),
   requestedAmount: numeric("requested_amount", { precision: 14, scale: 2 }).notNull(),
   approvedAmount: numeric("approved_amount", { precision: 14, scale: 2 }),
   interestRatePercent: numeric("interest_rate_percent", { precision: 6, scale: 3 }),

@@ -29,7 +29,7 @@ export const POST = withApiHandler(async () => {
   const kycStatus = check.cleared ? "VERIFIED" : "PENDING";
   await serviceDb.update(organizations).set({ kycStatus }).where(eq(organizations.id, org.id));
 
-  if (actor.organization.type === "EXPORTER") {
+  if (actor.organization.type === "EXPORTER" || actor.organization.type === "IMPORTER") {
     await recalculateAndSaveSts(actor.organization.id);
   }
 

@@ -21,24 +21,27 @@ export const WIDGET_TYPES = [
   "NOTIFICATIONS",
   "CALENDAR",
   "TASKS",
+  "INVESTMENTS",
 ] as const;
 
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 export type WidgetGridSpan = 1 | 2 | 3;
 
+export type DashboardOrgType = "EXPORTER" | "IMPORTER" | "INVESTOR";
+
 export type WidgetMeta = {
   type: WidgetType;
   title: string;
   gridSpan: WidgetGridSpan;
   /** Which organization types get this widget in their default layout. */
-  defaultFor: Array<"EXPORTER" | "IMPORTER">;
+  defaultFor: DashboardOrgType[];
 };
 
 export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
   STS: { type: "STS", title: "SeaSharp Trust Score", gridSpan: 3, defaultFor: ["EXPORTER"] },
-  KYC: { type: "KYC", title: "KYC / KYB", gridSpan: 1, defaultFor: ["EXPORTER", "IMPORTER"] },
-  LOAN: { type: "LOAN", title: "PO-Backed Trade Finance", gridSpan: 2, defaultFor: ["EXPORTER"] },
+  KYC: { type: "KYC", title: "KYC / KYB", gridSpan: 1, defaultFor: ["EXPORTER", "IMPORTER", "INVESTOR"] },
+  LOAN: { type: "LOAN", title: "Trade Finance Request", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
   AUDIT_TIMELINE: {
     type: "AUDIT_TIMELINE",
     title: "Audit Timeline",
@@ -48,9 +51,15 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
   RFQS: { type: "RFQS", title: "RFQs", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
   SHIPMENTS: { type: "SHIPMENTS", title: "Shipments", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
   REVENUE: { type: "REVENUE", title: "Revenue", gridSpan: 1, defaultFor: ["EXPORTER"] },
-  NOTIFICATIONS: { type: "NOTIFICATIONS", title: "Notifications", gridSpan: 1, defaultFor: ["EXPORTER", "IMPORTER"] },
+  NOTIFICATIONS: {
+    type: "NOTIFICATIONS",
+    title: "Notifications",
+    gridSpan: 1,
+    defaultFor: ["EXPORTER", "IMPORTER", "INVESTOR"],
+  },
   CALENDAR: { type: "CALENDAR", title: "Calendar", gridSpan: 1, defaultFor: [] },
   TASKS: { type: "TASKS", title: "Tasks", gridSpan: 1, defaultFor: [] },
+  INVESTMENTS: { type: "INVESTMENTS", title: "Investment Opportunities", gridSpan: 2, defaultFor: ["INVESTOR"] },
 };
 
 export type WidgetLayoutItem = {
@@ -71,7 +80,8 @@ export type WidgetLayoutItem = {
 // future "view this RFQ's audit trail" surface can add it to a layout, and
 // so this dashboard's per-RFQ links can enable it, but it's opt-in.
 export function defaultLayoutFor(organizationType: string): WidgetLayoutItem[] {
-  const orgType = organizationType === "EXPORTER" ? "EXPORTER" : "IMPORTER";
+  const orgType: DashboardOrgType =
+    organizationType === "EXPORTER" ? "EXPORTER" : organizationType === "INVESTOR" ? "INVESTOR" : "IMPORTER";
   const types = WIDGET_TYPES.filter((type) => WIDGET_REGISTRY[type].defaultFor.includes(orgType));
   return types.map((type, index) => ({ id: type, type, visible: true, order: index }));
 }

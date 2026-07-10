@@ -54,7 +54,7 @@ export function LoanPanel({
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-6">
-      <h2 className="font-semibold text-slate-100">PO-Backed Trade Finance</h2>
+      <h2 className="font-semibold text-slate-100">Trade Finance Request</h2>
 
       {eligibleRfqs.length > 0 ? (
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">

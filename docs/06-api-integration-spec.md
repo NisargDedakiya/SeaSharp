@@ -506,3 +506,66 @@ partner integration needs it.
   decision, not just a wiring change.
 - **Rate-limit tiering by plan**: not implemented — every route still uses
   a single fixed `options.rateLimit` value regardless of caller/plan.
+
+## Shipped: Investor financing marketplace
+
+Real, shipped, unversioned code extending the PO/invoice financing flow
+(spec section 5.2) to a full request → approve → fund lifecycle, and adding
+`INVESTOR` as a fourth live-registration organization type (previously only
+`EXPORTER`/`IMPORTER` had a registration flow — see
+`src/app/api/auth/register/route.ts`). This is the MVP instance of section
+5.4's Investor Marketplace.
+
+### `trade_loans` (extended)
+
+Two columns added to the existing table (`src/db/schema/finance.ts`):
+- `exporterOrganizationId` → renamed **`requestingOrganizationId`**: the
+  borrower, now either side of a deal — an `EXPORTER` requesting
+  pre-shipment financing (funds to buy/produce goods before exporting) or
+  an `IMPORTER` requesting import-purchase financing (funds to import goods
+  in order to resell them domestically). `requestingOrgType` (new column)
+  records which, so borrower-side lists/UI don't need a join to tell them
+  apart.
+- **`investorOrganizationId`** (new, nullable): which `INVESTOR`
+  organization funded this request. Null until funded — there is no
+  generic capital pool; every `FUNDED` loan is backed by exactly one
+  investor org, the same way an RFQ's award ties one specific bid to one
+  specific exporter. Migration: `drizzle/0008_investor_financing.sql`; RLS
+  extended in `drizzle/manual/12_investor_financing_rls.sql`.
+
+### Routes
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/loans` | List the caller's own financing requests (borrower-side, any status) |
+| `POST` | `/api/loans` | Request financing — `{ rfqId, requestedAmount }`, EXPORTER or IMPORTER only. Re-verifies the RFQ is awarded with funded escrow on the caller's side (`verifyFinancingCollateral`, `src/core/finance/loans.ts`), then CreditLayer (`scoreLoanRequest`) immediately sets `APPROVED`/`REJECTED` — same automatic pre-qualification section 5.2 already described, unchanged. |
+| `POST` | `/api/investments/:id/fund` | INVESTOR only. Commits the caller's org as funder of one specific `APPROVED`, not-yet-funded request — sets `investorOrganizationId`, flips `status` to `FUNDED`. 404 (not 403) if the request is already funded, still under review, rejected, or doesn't exist, so a losing race to fund the same request doesn't leak which case it was. |
+
+There is no `GET /api/investments` route — the investor-facing "browse open
+requests + my funded portfolio" list is a dashboard widget
+(`InvestmentsWidget`, `src/components/dashboard/widgets/`) that reads
+`serviceDb` directly on render, the same pattern `RfqsWidget`/`RevenueWidget`
+already use for their org types, rather than a client-side fetch.
+
+### STS now scores importers too
+
+`recalculateAndSaveSts` (`src/core/finance/sts-server.ts`) previously only
+ever ran for `EXPORTER` orgs and read shipment performance off
+`shipments.exporterOrganizationId`. It now branches on the organization's
+type and reads `shipments.importerOrganizationId` for `IMPORTER` orgs
+instead, so an importer's on-time-delivery/escrow-speed history can price
+their own import-purchase financing requests the same way STS already
+prices an exporter's. Triggered from the same two call sites as before
+(`/api/kyc` and `/dashboard`), now for both types.
+
+### Deferred / ambiguous — flagged for follow-up
+
+- **Accreditation**: any org that registers as `INVESTOR` can fund
+  requests today — there is no accredited-investor verification step (spec
+  section 5.4 calls for this). KYC/KYB for `INVESTOR` orgs uses the same
+  generic flow as exporters/importers.
+- **Repayment**: `REPAID`/`DEFAULTED` statuses exist on `trade_loans` but
+  nothing transitions a `FUNDED` loan into either — repayment tracking and
+  investor payout are not built.
+- **Partial funding**: one investor funds the full `approvedAmount`; there
+  is no syndication/partial-fill across multiple investors.

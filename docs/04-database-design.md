@@ -179,9 +179,14 @@ by a nightly reconciliation job — divergence pages an on-call, it never
 silently "self-heals").
 
 ### `trade_loans`
-`rfq_id`, `exporter_org_id`, `requested_amount`, `approved_amount`,
-`interest_rate_percent`, `risk_band`, `status enum (requested, approved,
-rejected, disbursed, repaying, repaid, defaulted)`.
+`rfq_id`, `requesting_organization_id` (the borrower — an exporter or
+importer, see `requesting_org_type`), `requesting_org_type`,
+`investor_organization_id` (nullable — which `INVESTOR` org funded it, set
+by `POST /api/investments/:id/fund`, see
+[docs/06-api-integration-spec.md](./06-api-integration-spec.md#shipped-investor-financing-marketplace)),
+`requested_amount`, `approved_amount`, `interest_rate_percent`, `risk_band`,
+`status enum (requested, under_review, approved, funded, repaid, defaulted,
+rejected)`.
 
 ## Workflow domain
 

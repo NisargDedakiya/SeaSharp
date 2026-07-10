@@ -11,6 +11,7 @@ import { ShipmentsWidget } from "./ShipmentsWidget";
 import { RevenueWidget } from "./RevenueWidget";
 import { NotificationsWidget } from "./NotificationsWidget";
 import { CalendarWidget, TasksWidget } from "./StubWidgets";
+import { InvestmentsWidget } from "./InvestmentsWidget";
 
 export type WidgetRenderContext = {
   organization: CurrentOrganization;
@@ -54,6 +55,8 @@ export async function renderWidget(type: WidgetType, ctx: WidgetRenderContext): 
       return <CalendarWidget />;
     case "TASKS":
       return <TasksWidget />;
+    case "INVESTMENTS":
+      return ctx.organization.type === "INVESTOR" ? <InvestmentsWidget organization={ctx.organization} /> : null;
     case "AUDIT_TIMELINE":
       // Needs a specific entityType/entityId that a generic dashboard
       // layout doesn't have — see registry.ts's comment. Not rendered

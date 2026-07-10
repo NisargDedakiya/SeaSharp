@@ -25,7 +25,7 @@ export async function RevenueWidget({ organization }: { organization: CurrentOrg
     .reduce((sum, e) => sum + Number(e.amount), 0);
 
   const loans = await serviceDb.query.tradeLoans.findMany({
-    where: eq(tradeLoans.exporterOrganizationId, organization.id),
+    where: eq(tradeLoans.requestingOrganizationId, organization.id),
   });
   const stsLoanVolume = loans
     .filter((l) => l.approvedAmount)
