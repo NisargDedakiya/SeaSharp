@@ -76,6 +76,37 @@ export const negotiations = pgTable("negotiations", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// A Deal is the importer's explicit confirmation of an awarded RFQ with the
+// winning exporter — the commercial handshake layered on top of the award's
+// escrow/shipment mechanics. Confirmed deals are what the exporter's
+// dashboard lists and what funding_requests (src/db/schema/finance.ts) are
+// raised against, so investors always finance a counterparty-confirmed
+// trade, never a mere award.
+export const dealStatusEnum = pgEnum("deal_status", ["CONFIRMED", "COMPLETED", "CANCELLED"]);
+
+export const deals = pgTable("deals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  rfqId: uuid("rfq_id")
+    .notNull()
+    .unique() // one deal per RFQ — confirming twice is a conflict, not a second deal
+    .references(() => rfqs.id),
+  bidId: uuid("bid_id")
+    .notNull()
+    .references(() => bids.id),
+  importerOrganizationId: uuid("importer_organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  exporterOrganizationId: uuid("exporter_organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  totalValue: numeric("total_value", { precision: 14, scale: 2 }).notNull(),
+  currency: text("currency").default("USD").notNull(),
+  status: dealStatusEnum("status").default("CONFIRMED").notNull(),
+  confirmedByProfileId: uuid("confirmed_by_profile_id"),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const contracts = pgTable("contracts", {
   id: uuid("id").primaryKey().defaultRandom(),
   rfqId: uuid("rfq_id")

@@ -48,6 +48,12 @@ function describeDomainEvent(type: string, payload: Record<string, unknown>): st
       return "Bid submitted";
     case "RFQ_AWARDED":
       return "RFQ awarded to winning bid";
+    case "DEAL_CONFIRMED":
+      return "Deal confirmed by importer";
+    case "FUNDING_REQUESTED":
+      return `Funding requested from investors${payload.requestedAmount ? `: $${payload.requestedAmount}` : ""}`;
+    case "FUNDING_REQUEST_FUNDED":
+      return "Funding request funded by an investor";
     case "ESCROW_MILESTONE_RELEASED":
       return `Escrow milestone released${payload.milestone ? `: ${payload.milestone}` : ""}`;
     case "SHIPMENT_DELIVERED":

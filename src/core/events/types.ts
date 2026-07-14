@@ -5,6 +5,11 @@ export const EVENT_TYPES = [
   "RFQ_CREATED",
   "BID_SUBMITTED",
   "RFQ_AWARDED",
+  // Importer confirms an awarded RFQ into a Deal (src/core/trade/deals.ts);
+  // funding-request events follow the same deal (src/core/finance/funding.ts).
+  "DEAL_CONFIRMED",
+  "FUNDING_REQUESTED",
+  "FUNDING_REQUEST_FUNDED",
   "ESCROW_MILESTONE_RELEASED",
   "SHIPMENT_DELIVERED",
   "KYC_VERIFIED",

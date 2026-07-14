@@ -18,6 +18,7 @@ export const WIDGET_TYPES = [
   "LOAN",
   "AUDIT_TIMELINE",
   "RFQS",
+  "DEALS",
   "SHIPMENTS",
   "REVENUE",
   "NOTIFICATIONS",
@@ -72,6 +73,10 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
     defaultFor: [],
   },
   RFQS: { type: "RFQS", title: "RFQs", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
+  // Importer-confirmed deals (deals table, src/db/schema/marketplace.ts).
+  // Exporters get the actionable view: request loan / funds-advance
+  // financing from investors against a confirmed deal (funding_requests).
+  DEALS: { type: "DEALS", title: "Confirmed Deals", gridSpan: 2, defaultFor: ["EXPORTER", "IMPORTER"] },
   // Real query is scoped to the two shipment parties (exporterOrganizationId
   // / importerOrganizationId — see ShipmentsWidget.tsx and
   // src/db/schema/logistics.ts's `shipments` table). There is no
@@ -102,12 +107,14 @@ export const WIDGET_REGISTRY: Record<WidgetType, WidgetMeta> = {
   // Stub widgets below: no owning domain table/column exists yet to back
   // these honestly (see logistics.ts / finance.ts — no forwarder
   // assignment, no customs-queue table, no warehouse/inventory table, no
-  // insurance-policy table, and no "open/unassigned" funding-request
-  // concept on trade_loans). "Coming soon" placeholders only, no
+  // insurance-policy table). "Coming soon" placeholders only, no
   // fabricated data.
   CUSTOMS_QUEUE: { type: "CUSTOMS_QUEUE", title: "Customs Queue", gridSpan: 2, defaultFor: ["CUSTOMS_BROKER"] },
   INVENTORY: { type: "INVENTORY", title: "Inventory", gridSpan: 2, defaultFor: ["WAREHOUSE_PROVIDER"] },
   POLICIES: { type: "POLICIES", title: "Policies", gridSpan: 2, defaultFor: ["INSURANCE_PROVIDER"] },
+  // Real widget (no longer a stub): the open book of funding_requests
+  // (src/db/schema/finance.ts) that exporters raised against confirmed
+  // deals, browsable + fundable by INVESTOR / FINANCE_PARTNER orgs.
   FUNDING_OPPORTUNITIES: {
     type: "FUNDING_OPPORTUNITIES",
     title: "Funding Opportunities",
@@ -141,10 +148,10 @@ export function defaultLayoutFor(organizationType: OrganizationType): WidgetLayo
   let types: WidgetType[];
   switch (organizationType) {
     case "EXPORTER":
-      types = ["STS", "KYC", "LOAN", "RFQS", "SHIPMENTS", "REVENUE", "NOTIFICATIONS"];
+      types = ["STS", "KYC", "DEALS", "LOAN", "RFQS", "SHIPMENTS", "REVENUE", "NOTIFICATIONS"];
       break;
     case "IMPORTER":
-      types = ["KYC", "RFQS", "SHIPMENTS", "NOTIFICATIONS"];
+      types = ["KYC", "RFQS", "DEALS", "SHIPMENTS", "NOTIFICATIONS"];
       break;
     case "FREIGHT_FORWARDER":
       types = ["KYC", "NOTIFICATIONS", "SHIPMENTS"];

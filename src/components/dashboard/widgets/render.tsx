@@ -7,9 +7,11 @@ import { LoanPanel } from "@/components/dashboard/LoanPanel";
 import type { WidgetType } from "./registry";
 import { StsWidget } from "./StsWidget";
 import { RfqsWidget } from "./RfqsWidget";
+import { DealsWidget } from "./DealsWidget";
 import { ShipmentsWidget } from "./ShipmentsWidget";
 import { RevenueWidget } from "./RevenueWidget";
 import { NotificationsWidget } from "./NotificationsWidget";
+import { FundingOpportunitiesWidget } from "./FundingOpportunitiesWidget";
 import {
   CalendarWidget,
   TasksWidget,
@@ -17,7 +19,6 @@ import {
   CustomsQueueWidget,
   InventoryWidget,
   PoliciesWidget,
-  FundingOpportunitiesWidget,
 } from "./StubWidgets";
 
 export type WidgetRenderContext = {
@@ -52,6 +53,14 @@ export async function renderWidget(type: WidgetType, ctx: WidgetRenderContext): 
       return <LoanPanel eligibleRfqs={ctx.eligibleRfqs} loans={ctx.loans} />;
     case "RFQS":
       return <RfqsWidget organization={ctx.organization} />;
+    case "DEALS":
+      // Both trade parties see their confirmed deals; only the exporter
+      // side gets the request-funding action (enforced again server-side
+      // in /api/funding-requests).
+      if (ctx.organization.type === "EXPORTER" || ctx.organization.type === "IMPORTER") {
+        return <DealsWidget organization={ctx.organization} />;
+      }
+      return null;
     case "SHIPMENTS":
       // Real query is exporter/importer-party-scoped only (see
       // registry.ts's SHIPMENTS comment) — freight forwarders get an
@@ -75,7 +84,13 @@ export async function renderWidget(type: WidgetType, ctx: WidgetRenderContext): 
     case "POLICIES":
       return <PoliciesWidget />;
     case "FUNDING_OPPORTUNITIES":
-      return <FundingOpportunitiesWidget />;
+      // Real open-requests book, capital-provider roles only — mirrors the
+      // fund action's own INVESTOR/FINANCE_PARTNER gate in
+      // src/core/finance/funding.ts.
+      if (ctx.organization.type === "INVESTOR" || ctx.organization.type === "FINANCE_PARTNER") {
+        return <FundingOpportunitiesWidget />;
+      }
+      return null;
     case "AUDIT_TIMELINE":
       // Needs a specific entityType/entityId that a generic dashboard
       // layout doesn't have — see registry.ts's comment. Not rendered

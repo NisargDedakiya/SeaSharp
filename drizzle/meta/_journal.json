@@ -64,6 +64,13 @@
       "when": 1783601819013,
       "tag": "0008_tidy_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783993532733,
+      "tag": "0009_faulty_thunderbolt",
+      "breakpoints": true
     }
   ]
 }

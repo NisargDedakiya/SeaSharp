@@ -1,6 +1,6 @@
 import { pgTable, pgEnum, uuid, text, timestamp, numeric, integer } from "drizzle-orm/pg-core";
 import { organizations } from "./identity";
-import { rfqs } from "./marketplace";
+import { rfqs, deals } from "./marketplace";
 
 // Mirrors Phase 1's ESCROW_STATUSES exactly for feature parity — see
 // src/app/api/rfqs/[id]/award/route.ts and .../escrow/[id]/release/route.ts.
@@ -99,6 +99,38 @@ export const tradeLoanStatusEnum = pgEnum("trade_loan_status", [
   "DEFAULTED",
   "REJECTED",
 ]);
+
+// Investor-directed financing raised against a confirmed Deal
+// (src/db/schema/marketplace.ts). Distinct from trade_loans below, which is
+// the platform's own AI-scored (CreditLayer) PO-financing decision: a
+// funding_request is an OPEN ask that sits in front of INVESTOR /
+// FINANCE_PARTNER organizations (the dashboard's Funding Opportunities
+// widget) until one of them funds it.
+export const fundingRequestKindEnum = pgEnum("funding_request_kind", ["LOAN", "ADVANCE"]);
+export const fundingRequestStatusEnum = pgEnum("funding_request_status", [
+  "OPEN",
+  "FUNDED",
+  "WITHDRAWN",
+]);
+
+export const fundingRequests = pgTable("funding_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dealId: uuid("deal_id")
+    .notNull()
+    .references(() => deals.id),
+  exporterOrganizationId: uuid("exporter_organization_id")
+    .notNull()
+    .references(() => organizations.id),
+  kind: fundingRequestKindEnum("kind").default("LOAN").notNull(),
+  requestedAmount: numeric("requested_amount", { precision: 14, scale: 2 }).notNull(),
+  currency: text("currency").default("USD").notNull(),
+  note: text("note"),
+  status: fundingRequestStatusEnum("status").default("OPEN").notNull(),
+  // The INVESTOR / FINANCE_PARTNER org that funded it; null while OPEN.
+  funderOrganizationId: uuid("funder_organization_id").references(() => organizations.id),
+  requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+  fundedAt: timestamp("funded_at", { withTimezone: true }),
+});
 
 export const tradeLoans = pgTable("trade_loans", {
   id: uuid("id").primaryKey().defaultRandom(),

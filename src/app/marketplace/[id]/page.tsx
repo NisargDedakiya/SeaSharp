@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { eq, asc } from "drizzle-orm";
 import { serviceDb } from "@/db/client";
-import { rfqs, organizations, bids, escrowAccounts, escrowMilestones, shipments } from "@/db/schema";
+import { rfqs, organizations, bids, escrowAccounts, escrowMilestones, shipments, deals } from "@/db/schema";
 import { getSessionActor } from "@/core/identity/session";
 import { countryName } from "@/lib/countries";
 import { CountdownTimer } from "@/components/CountdownTimer";
@@ -9,6 +9,7 @@ import { Reveal } from "@/components/Reveal";
 import { BidPanel } from "./BidPanel";
 import { BidList } from "./BidList";
 import { EscrowTracker } from "./EscrowTracker";
+import { ConfirmDealPanel } from "./ConfirmDealPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
       })
     : [];
   const shipment = await serviceDb.query.shipments.findFirst({ where: eq(shipments.rfqId, rfq.id) });
+  const deal = await serviceDb.query.deals.findFirst({ where: eq(deals.rfqId, rfq.id) });
 
   const isOwner = actor?.organization.id === rfq.organizationId;
   const myBid = bidList.find((b) => b.exporter.id === actor?.organization.id) ?? null;
@@ -140,6 +142,39 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
           <BidList rfqId={rfq.id} bids={bidList} rfqStatus={rfq.status} totalBidCount={bidList.length} />
         </Reveal>
       )}
+
+      {(() => {
+        // Deal confirmation: importer-only, once a bid is awarded. Value
+        // mirrors what confirmDeal (src/core/trade/deals.ts) will record —
+        // the escrowed amount, falling back to price x volume.
+        if (!isOwner || (rfq.status !== "AWARDED" && rfq.status !== "FULFILLED") || !rfq.awardedBidId) {
+          return null;
+        }
+        const winningBid = bidList.find((b) => b.id === rfq.awardedBidId);
+        if (!winningBid) return null;
+        const dealValue = escrow ? Number(escrow.amount) : Math.round(winningBid.pricePerUnit * volume * 100) / 100;
+        return (
+          <Reveal className="mt-10">
+            <ConfirmDealPanel
+              rfqId={rfq.id}
+              exporterName={winningBid.exporter.name}
+              dealValue={dealValue}
+              currency={rfq.currency}
+              deal={
+                deal
+                  ? {
+                      totalValue: Number(deal.totalValue),
+                      currency: deal.currency,
+                      status: deal.status,
+                      exporterName: winningBid.exporter.name,
+                      confirmedAt: deal.confirmedAt,
+                    }
+                  : null
+              }
+            />
+          </Reveal>
+        );
+      })()}
 
       {escrow && (
         <Reveal className="mt-10">

@@ -21,13 +21,14 @@ export function TasksWidget() {
 }
 
 // Ecosystem-role stubs below (freight forwarders, customs brokers,
-// warehouse providers, insurance providers, finance partners/investors —
-// see src/db/schema/identity.ts's organizationTypeEnum). None of these
-// have an owning domain table/column yet: `shipments` has no
-// forwarder-assignment column, and there is no customs-queue/inventory/
-// policy table, nor an "open/unassigned" funding-request concept on
-// `trade_loans` an investor could browse (see src/db/schema/logistics.ts
-// and finance.ts). Honest "coming soon" placeholders, no fabricated data.
+// warehouse providers, insurance providers — see src/db/schema/identity.ts's
+// organizationTypeEnum). None of these have an owning domain table/column
+// yet: `shipments` has no forwarder-assignment column, and there is no
+// customs-queue/inventory/policy table (see src/db/schema/logistics.ts and
+// finance.ts). Honest "coming soon" placeholders, no fabricated data.
+// (Funding Opportunities used to be stubbed here too — it became a real
+// widget once `funding_requests` gave investors an open/investable state
+// to browse; see ./FundingOpportunitiesWidget.tsx.)
 export function ShipmentsStubWidget() {
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
@@ -63,18 +64,6 @@ export function PoliciesWidget() {
     <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
       <h2 className="font-semibold text-ink-900">Policies</h2>
       <p className="mt-2 text-sm text-ink-400">Coming soon — cargo/trade insurance policies will appear here.</p>
-    </div>
-  );
-}
-
-export function FundingOpportunitiesWidget() {
-  return (
-    <div className="rounded-2xl border border-ink-100 bg-white p-6 shadow-premium">
-      <h2 className="font-semibold text-ink-900">Funding Opportunities</h2>
-      <p className="mt-2 text-sm text-ink-400">
-        Coming soon — open trade-finance funding requests will appear here once trade_loans supports an
-        unassigned/investable state.
-      </p>
     </div>
   );
 }
